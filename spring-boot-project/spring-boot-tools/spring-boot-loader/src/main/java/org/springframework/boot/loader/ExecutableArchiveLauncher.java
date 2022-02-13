@@ -118,7 +118,14 @@ public abstract class ExecutableArchiveLauncher extends Launcher {
 
 	@Override
 	protected Iterator<Archive> getClassPathArchivesIterator() throws Exception {
+		// vege 新版本的实现位置
+
+		// 实现在JarLauncher中， 取"/BOOT-INF"
 		Archive.EntryFilter searchFilter = this::isSearchCandidate;
+
+		// 获取FatJar内所有的archives，
+		// 其中， BOOT-INF/classes为一个archive
+		//       BOOT-INF/lib下每一个jar皆为一个archive
 		Iterator<Archive> archives = this.archive.getNestedArchives(searchFilter,
 				(entry) -> isNestedArchive(entry) && !isEntryIndexed(entry));
 		if (isPostProcessingClassPathArchives()) {

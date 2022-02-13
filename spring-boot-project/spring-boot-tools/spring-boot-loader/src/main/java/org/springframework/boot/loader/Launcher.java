@@ -50,11 +50,16 @@ public abstract class Launcher {
 	 */
 	protected void launch(String[] args) throws Exception {
 		if (!isExploded()) {
+			// 注册 URL 协议的处理器
 			JarFile.registerUrlProtocolHandler();
 		}
+
+		// 创建类加载器 ： LaunchedURLClassLoader （继承于 URLClassLoader）
 		ClassLoader classLoader = createClassLoader(getClassPathArchivesIterator());
 		String jarMode = System.getProperty("jarmode");
 		String launchClass = (jarMode != null && !jarMode.isEmpty()) ? JAR_MODE_LAUNCHER : getMainClass();
+
+		// 执行启动类的 main方法
 		launch(args, launchClass, classLoader);
 	}
 
@@ -104,7 +109,9 @@ public abstract class Launcher {
 	 * @throws Exception if the launch fails
 	 */
 	protected void launch(String[] args, String launchClass, ClassLoader classLoader) throws Exception {
+		//
 		Thread.currentThread().setContextClassLoader(classLoader);
+		//
 		createMainMethodRunner(launchClass, args, classLoader).run();
 	}
 
@@ -148,7 +155,14 @@ public abstract class Launcher {
 		throw new IllegalStateException("Unexpected call to getClassPathArchives()");
 	}
 
+	/**
+	 * fatjar所在的绝对路径 -> File -> JarFileArchive对象
+	 *
+	 * @return
+	 * @throws Exception
+	 */
 	protected final Archive createArchive() throws Exception {
+		// 获取jar所在的绝对路径
 		ProtectionDomain protectionDomain = getClass().getProtectionDomain();
 		CodeSource codeSource = protectionDomain.getCodeSource();
 		URI location = (codeSource != null) ? codeSource.getLocation().toURI() : null;

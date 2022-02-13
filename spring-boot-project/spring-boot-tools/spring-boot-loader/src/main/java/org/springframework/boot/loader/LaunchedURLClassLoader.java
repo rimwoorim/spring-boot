@@ -120,6 +120,9 @@ public class LaunchedURLClassLoader extends URLClassLoader {
 
 	@Override
 	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+
+		// 加载器加载入口
+
 		if (name.startsWith("org.springframework.boot.loader.jarmode.")) {
 			try {
 				Class<?> result = loadClassInLaunchedClassLoader(name);
@@ -135,8 +138,13 @@ public class LaunchedURLClassLoader extends URLClassLoader {
 			return super.loadClass(name, resolve);
 		}
 		Handler.setUseFastConnectionExceptions(true);
+
+		// JarFileArchive加载入口
+
 		try {
 			try {
+
+				// 定义包所在路径
 				definePackageIfNecessary(name);
 			}
 			catch (IllegalArgumentException ex) {
@@ -148,6 +156,8 @@ public class LaunchedURLClassLoader extends URLClassLoader {
 					throw new AssertionError("Package " + name + " has already been defined but it could not be found");
 				}
 			}
+
+			// 加载类
 			return super.loadClass(name, resolve);
 		}
 		finally {
@@ -217,11 +227,18 @@ public class LaunchedURLClassLoader extends URLClassLoader {
 			AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> {
 				String packageEntryName = packageName.replace('.', '/') + "/";
 				String classEntryName = className.replace('.', '/') + ".class";
+
+				// 遍历所有的archive
 				for (URL url : getURLs()) {
 					try {
+						// 打开每个archive
 						URLConnection connection = url.openConnection();
 						if (connection instanceof JarURLConnection) {
+
+							// 打开jar包
 							JarFile jarFile = ((JarURLConnection) connection).getJarFile();
+
+							// 如果当前jar包下有这个类
 							if (jarFile.getEntry(classEntryName) != null && jarFile.getEntry(packageEntryName) != null
 									&& jarFile.getManifest() != null) {
 								definePackage(packageName, jarFile.getManifest(), url);
