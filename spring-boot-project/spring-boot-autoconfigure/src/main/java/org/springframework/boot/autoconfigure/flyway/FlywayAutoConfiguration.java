@@ -36,7 +36,7 @@ import org.flywaydb.core.internal.plugin.PluginRegister;
 import org.flywaydb.database.sqlserver.SQLServerConfigurationExtension;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -84,12 +84,11 @@ import org.springframework.util.StringUtils;
  * @author Chris Bono
  * @since 1.1.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = { DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class,
+		HibernateJpaAutoConfiguration.class })
 @ConditionalOnClass(Flyway.class)
 @Conditional(FlywayDataSourceCondition.class)
 @ConditionalOnProperty(prefix = "spring.flyway", name = "enabled", matchIfMissing = true)
-@AutoConfigureAfter({ DataSourceAutoConfiguration.class, JdbcTemplateAutoConfiguration.class,
-		HibernateJpaAutoConfiguration.class })
 @Import(DatabaseInitializationDependencyConfigurer.class)
 public class FlywayAutoConfiguration {
 
@@ -189,6 +188,9 @@ public class FlywayAutoConfiguration {
 			map.from(properties.getPlaceholders()).to(configuration::placeholders);
 			map.from(properties.getPlaceholderPrefix()).to(configuration::placeholderPrefix);
 			map.from(properties.getPlaceholderSuffix()).to(configuration::placeholderSuffix);
+			// No method reference for compatibility with Flyway version < 8.0
+			map.from(properties.getPlaceholderSeparator())
+					.to((placeHolderSeparator) -> configuration.placeholderSeparator(placeHolderSeparator));
 			map.from(properties.isPlaceholderReplacement()).to(configuration::placeholderReplacement);
 			map.from(properties.getSqlMigrationPrefix()).to(configuration::sqlMigrationPrefix);
 			map.from(properties.getSqlMigrationSuffixes()).as(StringUtils::toStringArray)
@@ -259,10 +261,15 @@ public class FlywayAutoConfiguration {
 		@SuppressWarnings("deprecation")
 		private void configureIgnoredMigrations(FluentConfiguration configuration, FlywayProperties properties,
 				PropertyMapper map) {
-			map.from(properties.isIgnoreMissingMigrations()).to(configuration::ignoreMissingMigrations);
-			map.from(properties.isIgnoreIgnoredMigrations()).to(configuration::ignoreIgnoredMigrations);
-			map.from(properties.isIgnorePendingMigrations()).to(configuration::ignorePendingMigrations);
-			map.from(properties.isIgnoreFutureMigrations()).to(configuration::ignoreFutureMigrations);
+			try {
+				map.from(properties.isIgnoreMissingMigrations()).to(configuration::ignoreMissingMigrations);
+				map.from(properties.isIgnoreIgnoredMigrations()).to(configuration::ignoreIgnoredMigrations);
+				map.from(properties.isIgnorePendingMigrations()).to(configuration::ignorePendingMigrations);
+				map.from(properties.isIgnoreFutureMigrations()).to(configuration::ignoreFutureMigrations);
+			}
+			catch (BootstrapMethodError | NoSuchMethodError ex) {
+				// Flyway 9+
+			}
 		}
 
 		private void configureFailOnMissingLocations(FluentConfiguration configuration,
@@ -321,19 +328,6 @@ public class FlywayAutoConfiguration {
 					// Flyway 5.x
 				}
 			}
-		}
-
-		private boolean hasAtLeastOneLocation(ResourceLoader resourceLoader, Collection<String> locations) {
-			for (String location : locations) {
-				if (resourceLoader.getResource(normalizePrefix(location)).exists()) {
-					return true;
-				}
-			}
-			return false;
-		}
-
-		private String normalizePrefix(String location) {
-			return location.replace("filesystem:", "file:");
 		}
 
 		@Bean

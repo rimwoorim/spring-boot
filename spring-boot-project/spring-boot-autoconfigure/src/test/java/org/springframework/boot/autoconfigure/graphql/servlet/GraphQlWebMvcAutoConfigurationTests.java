@@ -16,6 +16,8 @@
 
 package org.springframework.boot.autoconfigure.graphql.servlet;
 
+import java.util.Map;
+
 import graphql.schema.idl.TypeRuntimeWiring;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -30,16 +32,18 @@ import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguratio
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
-import org.springframework.graphql.web.WebGraphQlHandler;
-import org.springframework.graphql.web.WebInterceptor;
-import org.springframework.graphql.web.webmvc.GraphQlHttpHandler;
-import org.springframework.graphql.web.webmvc.GraphQlWebSocketHandler;
+import org.springframework.graphql.server.WebGraphQlHandler;
+import org.springframework.graphql.server.WebGraphQlInterceptor;
+import org.springframework.graphql.server.webmvc.GraphQlHttpHandler;
+import org.springframework.graphql.server.webmvc.GraphQlWebSocketHandler;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.servlet.function.RouterFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
@@ -81,7 +85,7 @@ class GraphQlWebMvcAutoConfigurationTests {
 			String query = "{ bookById(id: \\\"book-1\\\"){ id name pageCount author } }";
 			MvcResult result = mockMvc.perform(post("/graphql").content("{\"query\": \"" + query + "\"}")).andReturn();
 			mockMvc.perform(asyncDispatch(result)).andExpect(status().isOk())
-					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_GRAPHQL))
 					.andExpect(jsonPath("data.bookById.name").value("GraphQL for beginners"));
 		});
 	}
@@ -153,11 +157,22 @@ class GraphQlWebMvcAutoConfigurationTests {
 				.run((context) -> assertThat(context).hasSingleBean(GraphQlWebSocketHandler.class));
 	}
 
+	@Test
+	void routerFunctionShouldHaveOrderZero() {
+		this.contextRunner.withUserConfiguration(CustomRouterFunctions.class).run((context) -> {
+			Map<String, ?> beans = context.getBeansOfType(RouterFunction.class);
+			Object[] ordered = context.getBeanProvider(RouterFunction.class).orderedStream().toArray();
+			assertThat(beans.get("before")).isSameAs(ordered[0]);
+			assertThat(beans.get("graphQlRouterFunction")).isSameAs(ordered[1]);
+			assertThat(beans.get("after")).isSameAs(ordered[2]);
+		});
+	}
+
 	private void testWith(MockMvcConsumer mockMvcConsumer) {
 		this.contextRunner.run((context) -> {
-			MediaType mediaType = MediaType.APPLICATION_JSON;
-			MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(context)
-					.defaultRequest(post("/graphql").contentType(mediaType).accept(mediaType)).build();
+			MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(context).defaultRequest(
+					post("/graphql").contentType(MediaType.APPLICATION_GRAPHQL).accept(MediaType.APPLICATION_GRAPHQL))
+					.build();
 			mockMvcConsumer.accept(mockMvc);
 		});
 	}
@@ -183,9 +198,26 @@ class GraphQlWebMvcAutoConfigurationTests {
 	static class CustomWebInterceptor {
 
 		@Bean
-		WebInterceptor customWebInterceptor() {
+		WebGraphQlInterceptor customWebGraphQlInterceptor() {
 			return (webInput, interceptorChain) -> interceptorChain.next(webInput)
 					.doOnNext((output) -> output.getResponseHeaders().add("X-Custom-Header", "42"));
+		}
+
+	}
+
+	@Configuration
+	static class CustomRouterFunctions {
+
+		@Bean
+		@Order(-1)
+		RouterFunction<?> before() {
+			return (r) -> null;
+		}
+
+		@Bean
+		@Order(1)
+		RouterFunction<?> after() {
+			return (r) -> null;
 		}
 
 	}

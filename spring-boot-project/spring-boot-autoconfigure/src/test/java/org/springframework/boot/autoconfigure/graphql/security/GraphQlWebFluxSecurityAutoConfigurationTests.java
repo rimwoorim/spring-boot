@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 the original author or authors.
+ * Copyright 2020-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,8 @@ import org.springframework.boot.test.context.runner.ReactiveWebApplicationContex
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.graphql.execution.ErrorType;
+import org.springframework.graphql.execution.ReactiveSecurityDataFetcherExceptionResolver;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
-import org.springframework.graphql.security.ReactiveSecurityDataFetcherExceptionResolver;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -141,7 +141,7 @@ class GraphQlWebFluxSecurityAutoConfigurationTests {
 	static class SecurityConfig {
 
 		@Bean
-		SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) throws Exception {
+		SecurityWebFilterChain springWebFilterChain(ServerHttpSecurity http) {
 			return http.csrf((spec) -> spec.disable())
 					// Demonstrate that method security works
 					// Best practice to use both for defense in depth

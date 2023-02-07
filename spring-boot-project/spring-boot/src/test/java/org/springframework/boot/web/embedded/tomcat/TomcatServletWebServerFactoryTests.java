@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package org.springframework.boot.web.embedded.tomcat;
 import java.io.File;
 import java.io.IOException;
 import java.net.SocketException;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -27,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -80,6 +80,8 @@ import org.springframework.boot.web.server.WebServerException;
 import org.springframework.boot.web.servlet.server.AbstractServletWebServerFactory;
 import org.springframework.boot.web.servlet.server.AbstractServletWebServerFactoryTests;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -94,9 +96,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link TomcatServletWebServerFactory}.
@@ -152,7 +154,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 		this.webServer = factory.getWebServer();
 		InOrder ordered = inOrder((Object[]) listeners);
 		for (LifecycleListener listener : listeners) {
-			ordered.verify(listener).lifecycleEvent(any(LifecycleEvent.class));
+			then(listener).should(ordered).lifecycleEvent(any(LifecycleEvent.class));
 		}
 	}
 
@@ -166,7 +168,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 		this.webServer = factory.getWebServer();
 		InOrder ordered = inOrder((Object[]) customizers);
 		for (TomcatContextCustomizer customizer : customizers) {
-			ordered.verify(customizer).customize(any(Context.class));
+			then(customizer).should(ordered).customize(any(Context.class));
 		}
 	}
 
@@ -177,7 +179,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 		factory.addContextCustomizers(customizer);
 		this.webServer = factory.getWebServer();
 		ArgumentCaptor<Context> contextCaptor = ArgumentCaptor.forClass(Context.class);
-		verify(customizer).customize(contextCaptor.capture());
+		then(customizer).should().customize(contextCaptor.capture());
 		assertThat(contextCaptor.getValue().getParent()).isNotNull();
 	}
 
@@ -191,7 +193,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 		this.webServer = factory.getWebServer();
 		InOrder ordered = inOrder((Object[]) customizers);
 		for (TomcatConnectorCustomizer customizer : customizers) {
-			ordered.verify(customizer).customize(any(Connector.class));
+			then(customizer).should(ordered).customize(any(Connector.class));
 		}
 	}
 
@@ -206,7 +208,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 		this.webServer = factory.getWebServer();
 		InOrder ordered = inOrder((Object[]) customizers);
 		for (TomcatProtocolHandlerCustomizer customizer : customizers) {
-			ordered.verify(customizer).customize(any(ProtocolHandler.class));
+			then(customizer).should(ordered).customize(any(ProtocolHandler.class));
 		}
 	}
 
@@ -267,7 +269,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 		Valve valve = mock(Valve.class);
 		factory.addContextValves(valve);
 		this.webServer = factory.getWebServer();
-		verify(valve).setNext(any(Valve.class));
+		then(valve).should().setNext(any(Valve.class));
 	}
 
 	@Test
@@ -404,12 +406,15 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 	}
 
 	@Test
-	void defaultLocaleCharsetMappingsAreOverridden() {
+	void defaultLocaleCharsetMappingsAreOverridden() throws IOException {
 		TomcatServletWebServerFactory factory = getFactory();
 		this.webServer = factory.getWebServer();
 		// override defaults, see org.apache.catalina.util.CharsetMapperDefault.properties
-		assertThat(getCharset(Locale.ENGLISH)).isEqualTo(StandardCharsets.UTF_8);
-		assertThat(getCharset(Locale.FRENCH)).isEqualTo(StandardCharsets.UTF_8);
+		Properties charsetMapperDefault = PropertiesLoaderUtils
+				.loadProperties(new ClassPathResource("CharsetMapperDefault.properties", CharsetMapper.class));
+		for (String language : charsetMapperDefault.stringPropertyNames()) {
+			assertThat(getCharset(new Locale(language))).isEqualTo(StandardCharsets.UTF_8);
+		}
 	}
 
 	@Test
@@ -506,7 +511,7 @@ class TomcatServletWebServerFactoryTests extends AbstractServletWebServerFactory
 	}
 
 	@Test
-	void nonExistentUploadDirectoryIsCreatedUponMultipartUpload() throws IOException, URISyntaxException {
+	void nonExistentUploadDirectoryIsCreatedUponMultipartUpload() {
 		TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory(0);
 		AtomicReference<ServletContext> servletContextReference = new AtomicReference<>();
 		factory.addInitializers((servletContext) -> {

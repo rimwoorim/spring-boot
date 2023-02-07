@@ -45,6 +45,8 @@ dependencies {
 	}
 	optional("org.apache.tomcat.embed:tomcat-embed-core")
 	optional("org.aspectj:aspectjweaver")
+	optional("org.cache2k:cache2k-micrometer")
+	optional("org.cache2k:cache2k-spring")
 	optional("org.eclipse.jetty:jetty-server") {
 		exclude(group: "javax.servlet", module: "javax.servlet-api")
 	}
@@ -70,7 +72,10 @@ dependencies {
 	optional("org.springframework.data:spring-data-cassandra") {
 		exclude group: "org.slf4j", module: "jcl-over-slf4j"
 	}
-	optional("org.springframework.data:spring-data-couchbase")
+	optional("org.springframework.data:spring-data-couchbase") {
+		exclude group: "com.querydsl", module: "querydsl-apt"
+		exclude group: "javax.annotation", module: "javax.annotation-api"
+	}
 	optional("org.springframework.data:spring-data-elasticsearch")  {
 		exclude(group: "commons-logging", module: "commons-logging")
 	}
@@ -102,6 +107,8 @@ dependencies {
 	testImplementation("org.springframework:spring-test")
 	testImplementation("com.squareup.okhttp3:mockwebserver")
 	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:neo4j")
+	testImplementation("org.testcontainers:testcontainers")
 
 	testRuntimeOnly("ch.qos.logback:logback-classic")
 	testRuntimeOnly("io.projectreactor.netty:reactor-netty-http")

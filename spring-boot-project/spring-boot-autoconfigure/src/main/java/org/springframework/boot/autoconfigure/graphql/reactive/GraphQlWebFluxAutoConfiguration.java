@@ -22,9 +22,10 @@ import java.util.stream.Collectors;
 import graphql.GraphQL;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -37,15 +38,17 @@ import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ResourceLoader;
-import org.springframework.graphql.GraphQlService;
+import org.springframework.core.annotation.Order;
+import org.springframework.core.log.LogMessage;
+import org.springframework.graphql.ExecutionGraphQlService;
 import org.springframework.graphql.execution.GraphQlSource;
-import org.springframework.graphql.web.WebGraphQlHandler;
-import org.springframework.graphql.web.WebInterceptor;
-import org.springframework.graphql.web.webflux.GraphQlHttpHandler;
-import org.springframework.graphql.web.webflux.GraphQlWebSocketHandler;
-import org.springframework.graphql.web.webflux.GraphiQlHandler;
-import org.springframework.graphql.web.webflux.SchemaHandler;
+import org.springframework.graphql.server.WebGraphQlHandler;
+import org.springframework.graphql.server.WebGraphQlInterceptor;
+import org.springframework.graphql.server.webflux.GraphQlHttpHandler;
+import org.springframework.graphql.server.webflux.GraphQlWebSocketHandler;
+import org.springframework.graphql.server.webflux.GraphiQlHandler;
+import org.springframework.graphql.server.webflux.SchemaHandler;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -54,8 +57,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.config.CorsRegistry;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
+import org.springframework.web.reactive.function.server.RequestPredicate;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
 import org.springframework.web.reactive.socket.server.support.WebSocketUpgradeHandlerPredicate;
@@ -70,13 +75,15 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
  * @author Brian Clozel
  * @since 2.7.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = GraphQlAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
 @ConditionalOnClass({ GraphQL.class, GraphQlHttpHandler.class })
-@ConditionalOnBean(GraphQlService.class)
-@AutoConfigureAfter(GraphQlAutoConfiguration.class)
+@ConditionalOnBean(ExecutionGraphQlService.class)
 @EnableConfigurationProperties(GraphQlCorsProperties.class)
 public class GraphQlWebFluxAutoConfiguration {
+
+	private static final RequestPredicate SUPPORTS_MEDIATYPES = accept(MediaType.APPLICATION_GRAPHQL,
+			MediaType.APPLICATION_JSON).and(contentType(MediaType.APPLICATION_GRAPHQL, MediaType.APPLICATION_JSON));
 
 	private static final Log logger = LogFactory.getLog(GraphQlWebFluxAutoConfiguration.class);
 
@@ -88,39 +95,38 @@ public class GraphQlWebFluxAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public WebGraphQlHandler webGraphQlHandler(GraphQlService service,
-			ObjectProvider<WebInterceptor> interceptorsProvider) {
+	public WebGraphQlHandler webGraphQlHandler(ExecutionGraphQlService service,
+			ObjectProvider<WebGraphQlInterceptor> interceptorsProvider) {
 		return WebGraphQlHandler.builder(service)
 				.interceptors(interceptorsProvider.orderedStream().collect(Collectors.toList())).build();
 	}
 
 	@Bean
-	public RouterFunction<ServerResponse> graphQlEndpoint(GraphQlHttpHandler handler, GraphQlSource graphQlSource,
-			GraphQlProperties properties, ResourceLoader resourceLoader) {
-
-		String graphQLPath = properties.getPath();
-		if (logger.isInfoEnabled()) {
-			logger.info("GraphQL endpoint HTTP POST " + graphQLPath);
-		}
-
-		RouterFunctions.Builder builder = RouterFunctions.route()
-				.GET(graphQLPath,
-						(request) -> ServerResponse.status(HttpStatus.METHOD_NOT_ALLOWED)
-								.headers((headers) -> headers.setAllow(Collections.singleton(HttpMethod.POST))).build())
-				.POST(graphQLPath, accept(MediaType.APPLICATION_JSON).and(contentType(MediaType.APPLICATION_JSON)),
-						handler::handleRequest);
-
+	@Order(0)
+	public RouterFunction<ServerResponse> graphQlRouterFunction(GraphQlHttpHandler httpHandler,
+			GraphQlSource graphQlSource, GraphQlProperties properties) {
+		String path = properties.getPath();
+		logger.info(LogMessage.format("GraphQL endpoint HTTP POST %s", path));
+		RouterFunctions.Builder builder = RouterFunctions.route();
+		builder = builder.GET(path, this::onlyAllowPost);
+		builder = builder.POST(path, SUPPORTS_MEDIATYPES, httpHandler::handleRequest);
 		if (properties.getGraphiql().isEnabled()) {
-			GraphiQlHandler graphiQlHandler = new GraphiQlHandler(graphQLPath, properties.getWebsocket().getPath());
-			builder = builder.GET(properties.getGraphiql().getPath(), graphiQlHandler::handleRequest);
+			GraphiQlHandler graphQlHandler = new GraphiQlHandler(path, properties.getWebsocket().getPath());
+			builder = builder.GET(properties.getGraphiql().getPath(), graphQlHandler::handleRequest);
 		}
-
 		if (properties.getSchema().getPrinter().isEnabled()) {
 			SchemaHandler schemaHandler = new SchemaHandler(graphQlSource);
-			builder = builder.GET(graphQLPath + "/schema", schemaHandler::handleRequest);
+			builder = builder.GET(path + "/schema", schemaHandler::handleRequest);
 		}
-
 		return builder.build();
+	}
+
+	private Mono<ServerResponse> onlyAllowPost(ServerRequest request) {
+		return ServerResponse.status(HttpStatus.METHOD_NOT_ALLOWED).headers(this::onlyAllowPost).build();
+	}
+
+	private void onlyAllowPost(HttpHeaders headers) {
+		headers.setAllow(Collections.singleton(HttpMethod.POST));
 	}
 
 	@Configuration(proxyBeanMethods = false)
@@ -161,9 +167,7 @@ public class GraphQlWebFluxAutoConfiguration {
 		public HandlerMapping graphQlWebSocketEndpoint(GraphQlWebSocketHandler graphQlWebSocketHandler,
 				GraphQlProperties properties) {
 			String path = properties.getWebsocket().getPath();
-			if (logger.isInfoEnabled()) {
-				logger.info("GraphQL endpoint WebSocket " + path);
-			}
+			logger.info(LogMessage.format("GraphQL endpoint WebSocket %s", path));
 			SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
 			mapping.setHandlerPredicate(new WebSocketUpgradeHandlerPredicate());
 			mapping.setUrlMap(Collections.singletonMap(path, graphQlWebSocketHandler));

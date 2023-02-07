@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,13 +74,15 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * @author Andy Wilkinson
  * @author Kris De Volder
  * @author Jonas Keßler
+ * @author Moritz Halbritter
  */
 class ConfigurationMetadataAnnotationProcessorTests extends AbstractMetadataGenerationTests {
 
 	@Test
 	void supportedAnnotations() {
 		assertThat(new ConfigurationMetadataAnnotationProcessor().getSupportedAnnotationTypes())
-				.containsExactlyInAnyOrder("org.springframework.boot.context.properties.ConfigurationProperties",
+				.containsExactlyInAnyOrder("org.springframework.boot.autoconfigure.AutoConfiguration",
+						"org.springframework.boot.context.properties.ConfigurationProperties",
 						"org.springframework.context.annotation.Configuration",
 						"org.springframework.boot.actuate.endpoint.annotation.Endpoint",
 						"org.springframework.boot.actuate.endpoint.jmx.annotation.JmxEndpoint",
@@ -220,6 +222,28 @@ class ConfigurationMetadataAnnotationProcessorTests extends AbstractMetadataGene
 		assertThat(metadata).has(Metadata.withGroup("not.deprecated").fromSource(type));
 		assertThat(metadata).has(Metadata.withProperty("not.deprecated.flag", Boolean.class).withDefaultValue(false)
 				.withNoDeprecation().fromSource(type));
+	}
+
+	@Test
+	@EnabledForJreRange(min = JRE.JAVA_16)
+	void deprecatedPropertyOnRecord(@TempDir File temp) throws IOException {
+		File exampleRecord = new File(temp, "DeprecatedRecord.java");
+		try (PrintWriter writer = new PrintWriter(new FileWriter(exampleRecord))) {
+			writer.println("@org.springframework.boot.configurationsample.ConstructorBinding");
+			writer.println(
+					"@org.springframework.boot.configurationsample.ConfigurationProperties(\"deprecated-record\")");
+			writer.println("public record DeprecatedRecord(String alpha, String bravo) {");
+			writer.println("@java.lang.Deprecated");
+			writer.println(
+					"@org.springframework.boot.configurationsample.DeprecatedConfigurationProperty(reason = \"some-reason\")");
+			writer.println("public String alpha() { return this.alpha; }");
+			writer.println("}");
+		}
+		ConfigurationMetadata metadata = compile(exampleRecord);
+		assertThat(metadata).has(Metadata.withGroup("deprecated-record"));
+		assertThat(metadata).has(
+				Metadata.withProperty("deprecated-record.alpha", String.class).withDeprecation("some-reason", null));
+		assertThat(metadata).has(Metadata.withProperty("deprecated-record.bravo", String.class));
 	}
 
 	@Test
@@ -427,6 +451,27 @@ class ConfigurationMetadataAnnotationProcessorTests extends AbstractMetadataGene
 
 	@Test
 	@EnabledForJreRange(min = JRE.JAVA_16)
+	void explicitlyBoundRecordPropertiesWithDefaultValues(@TempDir File temp) throws IOException {
+		File exampleRecord = new File(temp, "ExampleRecord.java");
+		try (PrintWriter writer = new PrintWriter(new FileWriter(exampleRecord))) {
+			writer.println("@org.springframework.boot.configurationsample.ConstructorBinding");
+			writer.println(
+					"@org.springframework.boot.configurationsample.ConfigurationProperties(\"record.defaults\")");
+			writer.println("public record ExampleRecord(");
+			writer.println("@org.springframework.boot.configurationsample.DefaultValue(\"An1s9n\") String someString,");
+			writer.println("@org.springframework.boot.configurationsample.DefaultValue(\"594\") Integer someInteger");
+			writer.println(") {");
+			writer.println("}");
+		}
+		ConfigurationMetadata metadata = compile(exampleRecord);
+		assertThat(metadata)
+				.has(Metadata.withProperty("record.defaults.some-string", String.class).withDefaultValue("An1s9n"));
+		assertThat(metadata)
+				.has(Metadata.withProperty("record.defaults.some-integer", Integer.class).withDefaultValue(594));
+	}
+
+	@Test
+	@EnabledForJreRange(min = JRE.JAVA_16)
 	void implicitlyBoundRecordProperties(@TempDir File temp) throws IOException {
 		File exampleRecord = new File(temp, "ExampleRecord.java");
 		try (PrintWriter writer = new PrintWriter(new FileWriter(exampleRecord))) {
@@ -458,6 +503,23 @@ class ConfigurationMetadataAnnotationProcessorTests extends AbstractMetadataGene
 		ConfigurationMetadata metadata = compile(exampleRecord);
 		assertThat(metadata).has(Metadata.withProperty("multi.some-string"));
 		assertThat(metadata).doesNotHave(Metadata.withProperty("multi.some-integer"));
+	}
+
+	@Test
+	@EnabledForJreRange(min = JRE.JAVA_16)
+	void recordWithGetter(@TempDir File temp) throws IOException {
+		File exampleRecord = new File(temp, "ExampleRecord.java");
+		try (PrintWriter writer = new PrintWriter(new FileWriter(exampleRecord))) {
+			writer.println(
+					"@org.springframework.boot.configurationsample.ConfigurationProperties(\"record-with-getter\")");
+			writer.println("@org.springframework.boot.configurationsample.ConstructorBinding");
+			writer.println("public record ExampleRecord(String alpha) {");
+			writer.println("    public String getBravo() { return alpha; }");
+			writer.println("}");
+		}
+		ConfigurationMetadata metadata = compile(exampleRecord);
+		assertThat(metadata).has(Metadata.withProperty("record-with-getter.alpha"));
+		assertThat(metadata).doesNotHave(Metadata.withProperty("record-with-getter.bravo"));
 	}
 
 }

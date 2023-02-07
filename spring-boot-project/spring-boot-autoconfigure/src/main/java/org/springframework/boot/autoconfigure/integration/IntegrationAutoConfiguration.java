@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import javax.sql.DataSource;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -35,6 +35,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandi
 import org.springframework.boot.autoconfigure.condition.SearchStrategy;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jmx.JmxAutoConfiguration;
+import org.springframework.boot.autoconfigure.jmx.JmxProperties;
 import org.springframework.boot.autoconfigure.rsocket.RSocketMessagingAutoConfiguration;
 import org.springframework.boot.autoconfigure.sql.init.OnDatabaseInitializationCondition;
 import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
@@ -46,7 +47,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.env.Environment;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.config.EnableIntegrationManagement;
 import org.springframework.integration.config.IntegrationManagementConfigurer;
@@ -81,11 +81,10 @@ import org.springframework.util.StringUtils;
  * @author Madhura Bhave
  * @since 1.1.0
  */
-@Configuration(proxyBeanMethods = false)
-@ConditionalOnClass(EnableIntegration.class)
-@EnableConfigurationProperties(IntegrationProperties.class)
-@AutoConfigureAfter({ DataSourceAutoConfiguration.class, JmxAutoConfiguration.class,
+@AutoConfiguration(after = { DataSourceAutoConfiguration.class, JmxAutoConfiguration.class,
 		TaskSchedulingAutoConfiguration.class })
+@ConditionalOnClass(EnableIntegration.class)
+@EnableConfigurationProperties({ IntegrationProperties.class, JmxProperties.class })
 public class IntegrationAutoConfiguration {
 
 	@Bean(name = IntegrationContextUtils.INTEGRATION_GLOBAL_PROPERTIES_BEAN_NAME)
@@ -187,14 +186,13 @@ public class IntegrationAutoConfiguration {
 	protected static class IntegrationJmxConfiguration {
 
 		@Bean
-		public IntegrationMBeanExporter integrationMbeanExporter(BeanFactory beanFactory, Environment environment) {
+		public IntegrationMBeanExporter integrationMbeanExporter(BeanFactory beanFactory, JmxProperties properties) {
 			IntegrationMBeanExporter exporter = new IntegrationMBeanExporter();
-			String defaultDomain = environment.getProperty("spring.jmx.default-domain");
+			String defaultDomain = properties.getDefaultDomain();
 			if (StringUtils.hasLength(defaultDomain)) {
 				exporter.setDefaultDomain(defaultDomain);
 			}
-			String serverBean = environment.getProperty("spring.jmx.server", "mbeanServer");
-			exporter.setServer(beanFactory.getBean(serverBean, MBeanServer.class));
+			exporter.setServer(beanFactory.getBean(properties.getServer(), MBeanServer.class));
 			return exporter;
 		}
 

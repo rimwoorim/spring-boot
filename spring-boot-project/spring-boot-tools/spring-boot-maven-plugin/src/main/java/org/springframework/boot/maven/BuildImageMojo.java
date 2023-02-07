@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,21 +112,23 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	private Image image;
 
 	/**
-	 * Alias for {@link Image#name} to support configuration via command-line property.
+	 * Alias for {@link Image#name} to support configuration through command-line
+	 * property.
 	 * @since 2.3.0
 	 */
 	@Parameter(property = "spring-boot.build-image.imageName", readonly = true)
 	String imageName;
 
 	/**
-	 * Alias for {@link Image#builder} to support configuration via command-line property.
+	 * Alias for {@link Image#builder} to support configuration through command-line
+	 * property.
 	 * @since 2.3.0
 	 */
 	@Parameter(property = "spring-boot.build-image.builder", readonly = true)
 	String imageBuilder;
 
 	/**
-	 * Alias for {@link Image#runImage} to support configuration via command-line
+	 * Alias for {@link Image#runImage} to support configuration through command-line
 	 * property.
 	 * @since 2.3.1
 	 */
@@ -134,7 +136,7 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	String runImage;
 
 	/**
-	 * Alias for {@link Image#cleanCache} to support configuration via command-line
+	 * Alias for {@link Image#cleanCache} to support configuration through command-line
 	 * property.
 	 * @since 2.4.0
 	 */
@@ -142,20 +144,22 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	Boolean cleanCache;
 
 	/**
-	 * Alias for {@link Image#pullPolicy} to support configuration via command-line
+	 * Alias for {@link Image#pullPolicy} to support configuration through command-line
 	 * property.
 	 */
 	@Parameter(property = "spring-boot.build-image.pullPolicy", readonly = true)
 	PullPolicy pullPolicy;
 
 	/**
-	 * Alias for {@link Image#publish} to support configuration via command-line property.
+	 * Alias for {@link Image#publish} to support configuration through command-line
+	 * property.
 	 */
 	@Parameter(property = "spring-boot.build-image.publish", readonly = true)
 	Boolean publish;
 
 	/**
-	 * Alias for {@link Image#network} to support configuration via command-line property.
+	 * Alias for {@link Image#network} to support configuration through command-line
+	 * property.
 	 * @since 2.6.0
 	 */
 	@Parameter(property = "spring-boot.build-image.network", readonly = true)
@@ -187,7 +191,7 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	private LayoutFactory layoutFactory;
 
 	/**
-	 * Return the type of archive that should be used when buiding the image.
+	 * Return the type of archive that should be used when building the image.
 	 * @return the value of the {@code layout} parameter, or {@code null} if the parameter
 	 * is not provided
 	 */
@@ -224,7 +228,7 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 		Libraries libraries = getLibraries(Collections.emptySet());
 		try {
 			DockerConfiguration dockerConfiguration = (this.docker != null) ? this.docker.asDockerConfiguration()
-					: null;
+					: new Docker().asDockerConfiguration();
 			BuildRequest request = getBuildRequest(libraries);
 			Builder builder = new Builder(new MojoBuildLog(this::getLog), dockerConfiguration);
 			builder.build(request);
@@ -234,7 +238,7 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 		}
 	}
 
-	private BuildRequest getBuildRequest(Libraries libraries) throws MojoExecutionException {
+	private BuildRequest getBuildRequest(Libraries libraries) {
 		ImagePackager imagePackager = new ImagePackager(getArchiveFile(), getBackupFile());
 		Function<Owner, TarArchive> content = (owner) -> getApplicationContent(owner, libraries, imagePackager);
 		Image image = (this.image != null) ? this.image : new Image();
@@ -259,15 +263,7 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 		if (image.network == null && this.network != null) {
 			image.setNetwork(this.network);
 		}
-		if (image.publish != null && image.publish && publishRegistryNotConfigured()) {
-			throw new MojoExecutionException("Publishing an image requires docker.publishRegistry to be configured");
-		}
 		return customize(image.getBuildRequest(this.project.getArtifact(), content));
-	}
-
-	private boolean publishRegistryNotConfigured() {
-		return this.docker == null || this.docker.getPublishRegistry() == null
-				|| this.docker.getPublishRegistry().isEmpty();
 	}
 
 	private TarArchive getApplicationContent(Owner owner, Libraries libraries, ImagePackager imagePackager) {
@@ -289,8 +285,8 @@ public class BuildImageMojo extends AbstractPackagerMojo {
 	}
 
 	/**
-	 * Return the {@link File} to use to backup the original source.
-	 * @return the file to use to backup the original source
+	 * Return the {@link File} to use to back up the original source.
+	 * @return the file to use to back up the original source
 	 */
 	private File getBackupFile() {
 		Artifact source = getSourceArtifact(null);

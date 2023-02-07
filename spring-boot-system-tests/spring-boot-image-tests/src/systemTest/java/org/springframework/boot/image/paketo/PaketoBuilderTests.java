@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -60,6 +62,7 @@ import static org.assertj.core.api.Assertions.entry;
  * @author Scott Frederick
  */
 @ExtendWith({ GradleBuildInjectionExtension.class, GradleBuildExtension.class })
+@EnabledForJreRange(min = JRE.JAVA_8, max = JRE.JAVA_18)
 class PaketoBuilderTests {
 
 	GradleBuild gradleBuild;
@@ -68,6 +71,7 @@ class PaketoBuilderTests {
 	void configureGradleBuild() {
 		this.gradleBuild.scriptProperty("systemTestMavenRepository",
 				new File("build/system-test-maven-repository").getAbsoluteFile().toURI().toASCIIString());
+		this.gradleBuild.expectDeprecationMessages("BPL_SPRING_CLOUD_BINDINGS_ENABLED.*true.*Deprecated");
 	}
 
 	@Test
@@ -77,7 +81,8 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName);
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 			ContainerConfig config = container.getContainerInfo().getConfig();
 			assertLabelsMatchManifestAttributes(config);
@@ -105,8 +110,9 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName);
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withCommand("--server.port=9090")
-				.withExposedPorts(9090)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withCommand("--server.port=9090");
+			container.withExposedPorts(9090);
 			container.waitingFor(Wait.forHttp("/test")).start();
 		}
 		finally {
@@ -121,13 +127,16 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName);
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 			container.stop();
 		}
+		this.gradleBuild.expectDeprecationMessages("BOM table is deprecated");
 		result = buildImage(imageName);
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 		}
 		finally {
@@ -143,7 +152,8 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName, "assemble", "bootDistZip");
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 			ContainerConfig config = container.getContainerInfo().getConfig();
 			ImageAssertions.assertThat(config).buildMetadata((metadata) -> {
@@ -176,7 +186,8 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName, "assemble", "bootDistZip");
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 			ContainerConfig config = container.getContainerInfo().getConfig();
 			ImageAssertions.assertThat(config).buildMetadata((metadata) -> {
@@ -211,7 +222,8 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName);
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 			ContainerConfig config = container.getContainerInfo().getConfig();
 			assertLabelsMatchManifestAttributes(config);
@@ -240,7 +252,8 @@ class PaketoBuilderTests {
 		ImageReference imageReference = ImageReference.of(ImageName.of(imageName));
 		BuildResult result = buildImage(imageName);
 		assertThat(result.task(":bootBuildImage").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
-		try (GenericContainer<?> container = new GenericContainer<>(imageName).withExposedPorts(8080)) {
+		try (GenericContainer<?> container = new GenericContainer<>(imageName)) {
+			container.withExposedPorts(8080);
 			container.waitingFor(Wait.forHttp("/test")).start();
 			ContainerConfig config = container.getContainerInfo().getConfig();
 			ImageAssertions.assertThat(config).buildMetadata((metadata) -> {

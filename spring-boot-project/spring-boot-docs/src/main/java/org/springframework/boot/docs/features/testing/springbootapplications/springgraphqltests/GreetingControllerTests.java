@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.springframework.boot.docs.features.testing.springbootapplications.sp
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.docs.web.graphql.GreetingController;
+import org.springframework.boot.docs.web.graphql.runtimewiring.GreetingController;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
 import org.springframework.graphql.test.tester.GraphQlTester;
 
@@ -31,13 +31,13 @@ class GreetingControllerTests {
 
 	@Test
 	void shouldGreetWithSpecificName() {
-		this.graphQlTester.query("{ greeting(name: \"Alice\") } ").execute().path("greeting").entity(String.class)
+		this.graphQlTester.document("{ greeting(name: \"Alice\") } ").execute().path("greeting").entity(String.class)
 				.isEqualTo("Hello, Alice!");
 	}
 
 	@Test
 	void shouldGreetWithDefaultName() {
-		this.graphQlTester.query("{ greeting } ").execute().path("greeting").entity(String.class)
+		this.graphQlTester.document("{ greeting } ").execute().path("greeting").entity(String.class)
 				.isEqualTo("Hello, Spring!");
 	}
 

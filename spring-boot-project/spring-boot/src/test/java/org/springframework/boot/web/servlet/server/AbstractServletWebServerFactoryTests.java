@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -48,9 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
@@ -80,7 +77,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.apache.catalina.webresources.TomcatURLStreamHandlerFactory;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.InputStreamFactory;
@@ -115,6 +111,7 @@ import org.springframework.boot.system.ApplicationHome;
 import org.springframework.boot.system.ApplicationTemp;
 import org.springframework.boot.testsupport.system.CapturedOutput;
 import org.springframework.boot.testsupport.system.OutputCaptureExtension;
+import org.springframework.boot.testsupport.web.servlet.DirtiesUrlFactories;
 import org.springframework.boot.testsupport.web.servlet.ExampleFilter;
 import org.springframework.boot.testsupport.web.servlet.ExampleServlet;
 import org.springframework.boot.web.server.Compression;
@@ -143,9 +140,7 @@ import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.FileCopyUtils;
-import org.springframework.util.SocketUtils;
 import org.springframework.util.StreamUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,10 +152,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Base for testing classes that extends {@link AbstractServletWebServerFactory}.
@@ -169,8 +164,10 @@ import static org.mockito.Mockito.verify;
  * @author Greg Turnquist
  * @author Andy Wilkinson
  * @author Raja Kolli
+ * @author Scott Frederick
  */
 @ExtendWith(OutputCaptureExtension.class)
+@DirtiesUrlFactories
 public abstract class AbstractServletWebServerFactoryTests {
 
 	@TempDir
@@ -208,20 +205,6 @@ public abstract class AbstractServletWebServerFactoryTests {
 			catch (Exception ex) {
 				// Ignore
 			}
-		}
-		if (ClassUtils.isPresent("org.apache.catalina.webresources.TomcatURLStreamHandlerFactory",
-				getClass().getClassLoader())) {
-			ReflectionTestUtils.setField(TomcatURLStreamHandlerFactory.class, "instance", null);
-		}
-		ReflectionTestUtils.setField(URL.class, "factory", null);
-	}
-
-	@AfterEach
-	void clearUrlStreamHandlerFactory() {
-		if (ClassUtils.isPresent("org.apache.catalina.webresources.TomcatURLStreamHandlerFactory",
-				getClass().getClassLoader())) {
-			ReflectionTestUtils.setField(TomcatURLStreamHandlerFactory.class, "instance", null);
-			ReflectionTestUtils.setField(URL.class, "factory", null);
 		}
 	}
 
@@ -324,11 +307,10 @@ public abstract class AbstractServletWebServerFactoryTests {
 	void specificPort() throws Exception {
 		AbstractServletWebServerFactory factory = getFactory();
 		int specificPort = doWithRetry(() -> {
-			int port = SocketUtils.findAvailableTcpPort(41000);
-			factory.setPort(port);
+			factory.setPort(0);
 			this.webServer = factory.getWebServer(exampleServletRegistration());
 			this.webServer.start();
-			return port;
+			return this.webServer.getPort();
 		});
 		assertThat(getResponse("http://localhost:" + specificPort + "/hello")).isEqualTo("Hello World");
 		assertThat(this.webServer.getPort()).isEqualTo(specificPort);
@@ -381,7 +363,7 @@ public abstract class AbstractServletWebServerFactoryTests {
 		this.webServer.start();
 		InOrder ordered = inOrder((Object[]) initializers);
 		for (ServletContextInitializer initializer : initializers) {
-			ordered.verify(initializer).onStartup(any(ServletContext.class));
+			then(initializer).should(ordered).onStartup(any(ServletContext.class));
 		}
 	}
 
@@ -563,6 +545,23 @@ public abstract class AbstractServletWebServerFactoryTests {
 	}
 
 	@Test
+	void pemKeyStoreAndTrustStore() throws Exception {
+		AbstractServletWebServerFactory factory = getFactory();
+		addTestTxtFile(factory);
+		factory.setSsl(getSsl("classpath:test-cert.pem", "classpath:test-key.pem"));
+		this.webServer = factory.getWebServer();
+		this.webServer.start();
+		KeyStore keyStore = KeyStore.getInstance("pkcs12");
+		loadStore(keyStore, new FileSystemResource("src/test/resources/test.p12"));
+		SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
+				new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy())
+						.loadKeyMaterial(keyStore, "secret".toCharArray()).build());
+		HttpClient httpClient = this.httpClientBuilder.get().setSSLSocketFactory(socketFactory).build();
+		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
+		assertThat(getResponse(getLocalUrl("https", "/test.txt"), requestFactory)).isEqualTo("test");
+	}
+
+	@Test
 	void sslNeedsClientAuthenticationSucceedsWithClientCertificate() throws Exception {
 		AbstractServletWebServerFactory factory = getFactory();
 		factory.setRegisterDefaultServlet(true);
@@ -649,8 +648,8 @@ public abstract class AbstractServletWebServerFactoryTests {
 		HttpClient httpClient = this.httpClientBuilder.get().setSSLSocketFactory(socketFactory).build();
 		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
 		assertThat(getResponse(getLocalUrl("https", "/test.txt"), requestFactory)).isEqualTo("test");
-		verify(sslStoreProvider, atLeastOnce()).getKeyStore();
-		verify(sslStoreProvider, atLeastOnce()).getTrustStore();
+		then(sslStoreProvider).should(atLeastOnce()).getKeyStore();
+		then(sslStoreProvider).should(atLeastOnce()).getTrustStore();
 	}
 
 	@Test
@@ -710,6 +709,15 @@ public abstract class AbstractServletWebServerFactoryTests {
 		if (supportedProtocols != null) {
 			ssl.setEnabledProtocols(supportedProtocols);
 		}
+		return ssl;
+	}
+
+	private Ssl getSsl(String cert, String privateKey) {
+		Ssl ssl = new Ssl();
+		ssl.setClientAuth(ClientAuth.NEED);
+		ssl.setCertificate(cert);
+		ssl.setCertificatePrivateKey(privateKey);
+		ssl.setTrustCertificate(cert);
 		return ssl;
 	}
 
@@ -1094,7 +1102,7 @@ public abstract class AbstractServletWebServerFactoryTests {
 		this.webServer = getFactory().getWebServer((servletContext) -> servletContext.addListener(listener));
 		this.webServer.start();
 		this.webServer.stop();
-		verify(listener).contextDestroyed(any(ServletContextEvent.class));
+		then(listener).should().contextDestroyed(any(ServletContextEvent.class));
 	}
 
 	@Test
@@ -1164,7 +1172,7 @@ public abstract class AbstractServletWebServerFactoryTests {
 	}
 
 	@Test
-	void whenARequestIsActiveThenStopWillComplete() throws InterruptedException, BrokenBarrierException {
+	void whenARequestIsActiveThenStopWillComplete() throws InterruptedException {
 		AbstractServletWebServerFactory factory = getFactory();
 		BlockingServlet blockingServlet = new BlockingServlet();
 		this.webServer = factory
@@ -1204,8 +1212,7 @@ public abstract class AbstractServletWebServerFactoryTests {
 	}
 
 	@Test
-	protected void whenHttp2IsEnabledAndSslIsDisabledThenHttp11CanStillBeUsed()
-			throws InterruptedException, ExecutionException, IOException, URISyntaxException {
+	protected void whenHttp2IsEnabledAndSslIsDisabledThenHttp11CanStillBeUsed() throws IOException, URISyntaxException {
 		AbstractServletWebServerFactory factory = getFactory();
 		Http2 http2 = new Http2();
 		http2.setEnabled(true);
@@ -1216,8 +1223,7 @@ public abstract class AbstractServletWebServerFactoryTests {
 	}
 
 	@Test
-	void whenARequestIsActiveAfterGracefulShutdownEndsThenStopWillComplete()
-			throws InterruptedException, BrokenBarrierException {
+	void whenARequestIsActiveAfterGracefulShutdownEndsThenStopWillComplete() throws InterruptedException {
 		AbstractServletWebServerFactory factory = getFactory();
 		factory.setShutdown(Shutdown.GRACEFUL);
 		BlockingServlet blockingServlet = new BlockingServlet();
@@ -1461,9 +1467,8 @@ public abstract class AbstractServletWebServerFactoryTests {
 	protected final void doWithBlockedPort(BlockedPortAction action) throws Exception {
 		ServerSocket serverSocket = new ServerSocket();
 		int blockedPort = doWithRetry(() -> {
-			int port = SocketUtils.findAvailableTcpPort(40000);
-			serverSocket.bind(new InetSocketAddress(port));
-			return port;
+			serverSocket.bind(null);
+			return serverSocket.getLocalPort();
 		});
 		try {
 			action.run(blockedPort);

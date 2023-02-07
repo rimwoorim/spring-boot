@@ -18,9 +18,7 @@ package org.springframework.boot.autoconfigure.mongo.embedded;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.EnumSet;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -28,13 +26,13 @@ import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.MongodConfig;
 import de.flapdoodle.embed.mongo.config.Storage;
-import de.flapdoodle.embed.mongo.distribution.Feature;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.config.RuntimeConfig;
 import de.flapdoodle.embed.process.config.store.DownloadConfig;
 import org.bson.Document;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import org.springframework.beans.DirectFieldAccessor;
@@ -44,6 +42,7 @@ import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoCon
 import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.boot.testsupport.junit.DisabledOnOs;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -63,6 +62,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @author Issam El-atif
  * @author Chris Bono
  */
+
+@DisabledOnOs(os = OS.LINUX, architecture = "aarch64",
+		disabledReason = "Embedded Mongo doesn't support Linux aarch64, see https://github.com/flapdoodle-oss/de.flapdoodle.embed.mongo/issues/379")
 class EmbeddedMongoAutoConfigurationTests {
 
 	private AnnotationConfigApplicationContext context;
@@ -94,15 +96,6 @@ class EmbeddedMongoAutoConfigurationTests {
 	@Test
 	void customUnknownVersion() {
 		assertVersionConfiguration("3.4.1", "3.4.1");
-	}
-
-	@Test
-	void customFeatures() {
-		EnumSet<Feature> features = EnumSet.of(Feature.TEXT_SEARCH, Feature.SYNC_DELAY, Feature.NO_HTTP_INTERFACE_ARG);
-		loadWithValidVersion("spring.mongodb.embedded.features="
-				+ features.stream().map(Feature::name).collect(Collectors.joining(", ")));
-		assertThat(this.context.getBean(EmbeddedMongoProperties.class).getFeatures())
-				.containsExactlyElementsOf(features);
 	}
 
 	@Test

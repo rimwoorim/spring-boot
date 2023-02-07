@@ -22,37 +22,33 @@ import org.elasticsearch.client.RestClient;
 
 import org.springframework.boot.actuate.autoconfigure.health.CompositeHealthContributorConfiguration;
 import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
-import org.springframework.boot.actuate.elasticsearch.ElasticsearchRestHealthIndicator;
+import org.springframework.boot.actuate.elasticsearch.ElasticsearchRestClientHealthIndicator;
 import org.springframework.boot.actuate.health.HealthContributor;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for
- * {@link ElasticsearchRestHealthIndicator} using the {@link RestClient}.
+ * {@link ElasticsearchRestClientHealthIndicator}.
  *
  * @author Artsiom Yudovin
  * @since 2.1.1
  */
-@SuppressWarnings("deprecation")
-@Configuration(proxyBeanMethods = false)
-@ConditionalOnClass(org.elasticsearch.client.RestHighLevelClient.class)
-@ConditionalOnBean(org.elasticsearch.client.RestHighLevelClient.class)
+@AutoConfiguration(after = ElasticsearchRestClientAutoConfiguration.class)
+@ConditionalOnClass(RestClient.class)
+@ConditionalOnBean(RestClient.class)
 @ConditionalOnEnabledHealthIndicator("elasticsearch")
-@AutoConfigureAfter(ElasticsearchRestClientAutoConfiguration.class)
-public class ElasticSearchRestHealthContributorAutoConfiguration extends
-		CompositeHealthContributorConfiguration<ElasticsearchRestHealthIndicator, org.elasticsearch.client.RestHighLevelClient> {
+public class ElasticSearchRestHealthContributorAutoConfiguration
+		extends CompositeHealthContributorConfiguration<ElasticsearchRestClientHealthIndicator, RestClient> {
 
 	@Bean
 	@ConditionalOnMissingBean(name = { "elasticsearchHealthIndicator", "elasticsearchHealthContributor" })
-	public HealthContributor elasticsearchHealthContributor(
-			Map<String, org.elasticsearch.client.RestHighLevelClient> clients) {
+	public HealthContributor elasticsearchHealthContributor(Map<String, RestClient> clients) {
 		return createContributor(clients);
 	}
 

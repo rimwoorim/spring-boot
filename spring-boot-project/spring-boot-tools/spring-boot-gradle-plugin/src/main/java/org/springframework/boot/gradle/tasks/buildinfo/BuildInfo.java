@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskExecutionException;
+import org.gradle.work.DisableCachingByDefault;
 
 import org.springframework.boot.loader.tools.BuildPropertiesWriter;
 import org.springframework.boot.loader.tools.BuildPropertiesWriter.ProjectDetails;
@@ -41,6 +42,7 @@ import org.springframework.boot.loader.tools.BuildPropertiesWriter.ProjectDetail
  * @author Andy Wilkinson
  * @since 2.0.0
  */
+@DisableCachingByDefault(because = "Not worth caching")
 public class BuildInfo extends ConventionTask {
 
 	private final BuildInfoProperties properties = new BuildInfoProperties(getProject());
@@ -108,7 +110,7 @@ public class BuildInfo extends ConventionTask {
 
 	private Map<String, String> coerceToStringValues(Map<String, Object> input) {
 		Map<String, String> output = new HashMap<>();
-		input.forEach((key, value) -> output.put(key, value.toString()));
+		input.forEach((key, value) -> output.put(key, (value != null) ? value.toString() : null));
 		return output;
 	}
 

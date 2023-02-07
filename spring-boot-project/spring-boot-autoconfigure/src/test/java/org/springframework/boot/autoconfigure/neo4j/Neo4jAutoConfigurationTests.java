@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -141,7 +141,7 @@ class Neo4jAutoConfigurationTests {
 
 	@Test
 	@Deprecated
-	void determineServerUriWithCustoUriShouldTakePrecedenceOverDeprecatedProperty() {
+	void determineServerUriWithCustomUriShouldTakePrecedenceOverDeprecatedProperty() {
 		URI customUri = URI.create("bolt://localhost:4242");
 		URI anotherCustomURI = URI.create("bolt://localhost:2424");
 		Neo4jProperties properties = new Neo4jProperties();
@@ -292,7 +292,7 @@ class Neo4jAutoConfigurationTests {
 		Config.TrustStrategy trustStrategy = mapDriverConfig(properties).trustStrategy();
 		assertThat(trustStrategy.strategy())
 				.isEqualTo(Config.TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES);
-		assertThat(trustStrategy.certFile()).isEqualTo(certFile);
+		assertThat(trustStrategy.certFiles()).containsOnly(certFile);
 	}
 
 	@Test

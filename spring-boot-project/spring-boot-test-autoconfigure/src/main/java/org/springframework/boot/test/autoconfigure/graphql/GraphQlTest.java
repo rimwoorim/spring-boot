@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 the original author or authors.
+ * Copyright 2020-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import org.springframework.boot.test.autoconfigure.OverrideAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.core.AutoConfigureCache;
 import org.springframework.boot.test.autoconfigure.filter.TypeExcludeFilters;
 import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureGraphQlTester;
-import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureWebGraphQlTester;
+import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureHttpGraphQlTester;
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.annotation.AliasFor;
@@ -51,6 +51,9 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
  * <li>{@code @JsonComponent}
  * <li>{@code Converter}
  * <li>{@code GenericConverter}
+ * <li>{@code DataFetcherExceptionResolver}
+ * <li>{@code Instrumentation}
+ * <li>{@code GraphQlSourceBuilderCustomizer}
  * </ul>
  * <p>
  * The annotation does not automatically load {@code @Component}, {@code @Service},
@@ -67,9 +70,9 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
  * and other components required for the tests.
  * <p>
  * To load your full application configuration instead and test via
- * {@code WebGraphQlTester}, consider using
+ * {@code HttpGraphQlTester}, consider using
  * {@link org.springframework.boot.test.context.SpringBootTest @SpringBootTest} combined
- * with {@link AutoConfigureWebGraphQlTester @AutoConfigureWebGraphQlTester}.
+ * with {@link AutoConfigureHttpGraphQlTester @AutoConfigureHttpGraphQlTester}.
  *
  * @author Brian Clozel
  * @since 2.7.0
@@ -121,7 +124,9 @@ public @interface GraphQlTest {
 	 * {@link SpringBootApplication @SpringBootApplication}. By default, only
 	 * {@code @Controller} (when no explicit {@link #controllers() controllers} are
 	 * defined), {@code RuntimeWiringConfigurer}, {@code @JsonComponent},
-	 * {@code Converter}, and {@code GenericConverter} beans are included.
+	 * {@code Converter}, {@code GenericConverter}, {@code DataFetcherExceptionResolver},
+	 * {@code Instrumentation} and {@code GraphQlSourceBuilderCustomizer} beans are
+	 * included.
 	 * @see #includeFilters()
 	 * @see #excludeFilters()
 	 * @return if default filters should be used

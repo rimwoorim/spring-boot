@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.boot.autoconfigure.flyway;
 
+import java.util.UUID;
+
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.Location;
 import org.flywaydb.core.api.callback.Callback;
@@ -24,7 +26,7 @@ import org.flywaydb.core.api.callback.Event;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.jdbc.EmbeddedDataSourceConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.testsupport.classpath.ClassPathOverrides;
 import org.springframework.context.annotation.Bean;
@@ -33,9 +35,9 @@ import org.springframework.context.annotation.Configuration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link FlywayAutoConfiguration} with Flyway 7.x.
@@ -47,11 +49,11 @@ class Flyway7xAutoConfigurationTests {
 
 	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
 			.withConfiguration(AutoConfigurations.of(FlywayAutoConfiguration.class))
-			.withPropertyValues("spring.datasource.generate-unique-name=true");
+			.withPropertyValues("spring.datasource.url:jdbc:hsqldb:mem:" + UUID.randomUUID());
 
 	@Test
 	void defaultFlyway() {
-		this.contextRunner.withUserConfiguration(EmbeddedDataSourceConfiguration.class).run((context) -> {
+		this.contextRunner.withUserConfiguration(DataSourceAutoConfiguration.class).run((context) -> {
 			assertThat(context).hasSingleBean(Flyway.class);
 			Flyway flyway = context.getBean(Flyway.class);
 			assertThat(flyway.getConfiguration().getLocations())
@@ -61,7 +63,7 @@ class Flyway7xAutoConfigurationTests {
 
 	@Test
 	void callbacksAreConfigured() {
-		this.contextRunner.withUserConfiguration(EmbeddedDataSourceConfiguration.class, CallbackConfiguration.class)
+		this.contextRunner.withUserConfiguration(DataSourceAutoConfiguration.class, CallbackConfiguration.class)
 				.run((context) -> {
 					assertThat(context).hasSingleBean(Flyway.class);
 					Flyway flyway = context.getBean(Flyway.class);
@@ -70,8 +72,8 @@ class Flyway7xAutoConfigurationTests {
 					assertThat(flyway.getConfiguration().getCallbacks()).hasSize(2);
 					assertThat(flyway.getConfiguration().getCallbacks()).containsExactlyInAnyOrder(callbackTwo,
 							callbackOne);
-					verify(callbackOne, atLeastOnce()).handle(any(Event.class), any(Context.class));
-					verify(callbackTwo, atLeastOnce()).handle(any(Event.class), any(Context.class));
+					then(callbackOne).should(atLeastOnce()).handle(any(Event.class), any(Context.class));
+					then(callbackTwo).should(atLeastOnce()).handle(any(Event.class), any(Context.class));
 				});
 	}
 

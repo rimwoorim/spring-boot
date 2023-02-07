@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,6 @@ import org.apache.logging.log4j.core.util.ShutdownCallbackRegistry;
 import org.apache.logging.log4j.util.PropertiesUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -50,6 +49,8 @@ import org.springframework.boot.logging.LoggerConfiguration;
 import org.springframework.boot.logging.LoggingInitializationContext;
 import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.logging.LoggingSystemProperties;
+import org.springframework.boot.testsupport.classpath.ClassPathExclusions;
+import org.springframework.boot.testsupport.logging.ConfigureClasspathToPreferLog4j2;
 import org.springframework.boot.testsupport.system.CapturedOutput;
 import org.springframework.boot.testsupport.system.OutputCaptureExtension;
 import org.springframework.mock.env.MockEnvironment;
@@ -60,9 +61,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.contentOf;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link Log4J2LoggingSystem}.
@@ -74,6 +75,8 @@ import static org.mockito.Mockito.verify;
  * @author Madhura Bhave
  */
 @ExtendWith(OutputCaptureExtension.class)
+@ClassPathExclusions("logback-*.jar")
+@ConfigureClasspathToPreferLog4j2
 class Log4J2LoggingSystemTests extends AbstractLoggingSystemTests {
 
 	private final TestLog4J2LoggingSystem loggingSystem = new TestLog4J2LoggingSystem();
@@ -247,11 +250,12 @@ class Log4J2LoggingSystemTests extends AbstractLoggingSystemTests {
 	}
 
 	@Test
-	@Disabled("Uses Logback unintentionally")
 	void loggingThatUsesJulIsCaptured(CapturedOutput output) {
+		String name = getClass().getName();
 		this.loggingSystem.beforeInitialize();
 		this.loggingSystem.initialize(this.initializationContext, null, null);
-		java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger(getClass().getName());
+		this.loggingSystem.setLogLevel(name, LogLevel.TRACE);
+		java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger(name);
 		julLogger.setLevel(java.util.logging.Level.INFO);
 		julLogger.severe("Hello world");
 		assertThat(output).contains("Hello world");
@@ -342,11 +346,11 @@ class Log4J2LoggingSystemTests extends AbstractLoggingSystemTests {
 		this.loggingSystem.initialize(this.initializationContext, null, null);
 		this.loggingSystem.beforeInitialize();
 		this.loggingSystem.initialize(this.initializationContext, null, null);
-		verify(listener, times(2)).propertyChange(any(PropertyChangeEvent.class));
+		then(listener).should(times(2)).propertyChange(any(PropertyChangeEvent.class));
 		this.loggingSystem.cleanUp();
 		this.loggingSystem.beforeInitialize();
 		this.loggingSystem.initialize(this.initializationContext, null, null);
-		verify(listener, times(4)).propertyChange(any(PropertyChangeEvent.class));
+		then(listener).should(times(4)).propertyChange(any(PropertyChangeEvent.class));
 	}
 
 	@Test
@@ -439,6 +443,7 @@ class Log4J2LoggingSystemTests extends AbstractLoggingSystemTests {
 	 */
 	static class Nested {
 
+		@SuppressWarnings("unused")
 		private static final Log logger = LogFactory.getLog(Nested.class);
 
 	}

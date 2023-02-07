@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,6 +80,8 @@ public class GradleBuild {
 
 	private GradleVersion expectDeprecationWarnings;
 
+	private List<String> expectedDeprecationMessages = new ArrayList<>();
+
 	private boolean configurationCache = false;
 
 	private Map<String, String> scriptProperties = new HashMap<>();
@@ -152,9 +154,18 @@ public class GradleBuild {
 		return this;
 	}
 
+	public GradleBuild expectDeprecationMessages(String... messages) {
+		this.expectedDeprecationMessages.addAll(Arrays.asList(messages));
+		return this;
+	}
+
 	public GradleBuild configurationCache() {
 		this.configurationCache = true;
 		return this;
+	}
+
+	public boolean isConfigurationCache() {
+		return this.configurationCache;
 	}
 
 	public GradleBuild scriptProperty(String key, String value) {
@@ -167,7 +178,13 @@ public class GradleBuild {
 			BuildResult result = prepareRunner(arguments).build();
 			if (this.expectDeprecationWarnings == null || (this.gradleVersion != null
 					&& this.expectDeprecationWarnings.compareTo(GradleVersion.version(this.gradleVersion)) > 0)) {
-				assertThat(result.getOutput()).doesNotContain("Deprecated").doesNotContain("deprecated");
+				String buildOutput = result.getOutput();
+				if (this.expectedDeprecationMessages != null) {
+					for (String message : this.expectedDeprecationMessages) {
+						buildOutput = buildOutput.replaceAll(message, "");
+					}
+				}
+				assertThat(buildOutput).doesNotContainIgnoringCase("deprecated");
 			}
 			return result;
 		}

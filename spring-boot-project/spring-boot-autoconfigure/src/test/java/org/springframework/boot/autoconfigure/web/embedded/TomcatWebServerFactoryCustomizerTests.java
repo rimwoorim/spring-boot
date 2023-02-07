@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.apache.catalina.valves.RemoteIpValve;
 import org.apache.coyote.AbstractProtocol;
 import org.apache.coyote.ajp.AbstractAjpProtocol;
 import org.apache.coyote.http11.AbstractHttp11Protocol;
+import org.apache.coyote.http2.Http2Protocol;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -107,6 +108,22 @@ class TomcatWebServerFactoryCustomizerTests {
 	}
 
 	@Test
+	void defaultKeepAliveTimeoutWithHttp2() {
+		bind("server.http2.enabled=true");
+		customizeAndRunServer((server) -> assertThat(
+				((Http2Protocol) server.getTomcat().getConnector().findUpgradeProtocols()[0]).getKeepAliveTimeout())
+						.isEqualTo(20000L));
+	}
+
+	@Test
+	void customKeepAliveTimeoutWithHttp2() {
+		bind("server.tomcat.keep-alive-timeout=30s", "server.http2.enabled=true");
+		customizeAndRunServer((server) -> assertThat(
+				((Http2Protocol) server.getTomcat().getConnector().findUpgradeProtocols()[0]).getKeepAliveTimeout())
+						.isEqualTo(30000L));
+	}
+
+	@Test
 	void customMaxKeepAliveRequests() {
 		bind("server.tomcat.max-keep-alive-requests=-1");
 		customizeAndRunServer((server) -> assertThat(
@@ -163,6 +180,19 @@ class TomcatWebServerFactoryCustomizerTests {
 		customizeAndRunServer((server) -> assertThat(
 				((AbstractHttp11Protocol<?>) server.getTomcat().getConnector().getProtocolHandler())
 						.getMaxHttpHeaderSize()).isEqualTo(DataSize.ofKilobytes(1).toBytes()));
+	}
+
+	@Test
+	void customMaxHttpHeaderSizeWithHttp2() {
+		bind("server.max-http-header-size=1KB", "server.http2.enabled=true");
+		customizeAndRunServer((server) -> {
+			AbstractHttp11Protocol<?> protocolHandler = (AbstractHttp11Protocol<?>) server.getTomcat().getConnector()
+					.getProtocolHandler();
+			long expectedSize = DataSize.ofKilobytes(1).toBytes();
+			assertThat(protocolHandler.getMaxHttpHeaderSize()).isEqualTo(expectedSize);
+			assertThat(((Http2Protocol) protocolHandler.getUpgradeProtocol("h2c")).getMaxHeaderSize())
+					.isEqualTo(expectedSize);
+		});
 	}
 
 	@Test
@@ -522,6 +552,7 @@ class TomcatWebServerFactoryCustomizerTests {
 
 	private TomcatServletWebServerFactory customizeAndGetFactory() {
 		TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory(0);
+		factory.setHttp2(this.serverProperties.getHttp2());
 		this.customizer.customize(factory);
 		return factory;
 	}

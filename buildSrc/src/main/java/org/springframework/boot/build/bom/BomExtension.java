@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -168,13 +169,18 @@ public class BomExtension {
 		return this.properties;
 	}
 
-	String getArtifactVersionProperty(String groupId, String artifactId) {
-		String coordinates = groupId + ":" + artifactId;
+	String getArtifactVersionProperty(String groupId, String artifactId, String classifier) {
+		String coordinates = groupId + ":" + artifactId + ":" + classifier;
 		return this.artifactVersionProperties.get(coordinates);
 	}
 
 	private void putArtifactVersionProperty(String groupId, String artifactId, String versionProperty) {
-		String coordinates = groupId + ":" + artifactId;
+		putArtifactVersionProperty(groupId, artifactId, null, versionProperty);
+	}
+
+	private void putArtifactVersionProperty(String groupId, String artifactId, String classifier,
+			String versionProperty) {
+		String coordinates = groupId + ":" + artifactId + ":" + ((classifier != null) ? classifier : "");
 		String existing = this.artifactVersionProperties.putIfAbsent(coordinates, versionProperty);
 		if (existing != null) {
 			throw new InvalidUserDataException("Cannot put version property for '" + coordinates
@@ -190,7 +196,7 @@ public class BomExtension {
 		}
 		for (Group group : library.getGroups()) {
 			for (Module module : group.getModules()) {
-				putArtifactVersionProperty(group.getId(), module.getName(), versionProperty);
+				putArtifactVersionProperty(group.getId(), module.getName(), module.getClassifier(), versionProperty);
 				this.dependencyHandler.getConstraints().add(JavaPlatformPlugin.API_CONFIGURATION_NAME,
 						createDependencyNotation(group.getId(), module.getName(), library.getVersion().getVersion()));
 			}
@@ -240,16 +246,11 @@ public class BomExtension {
 					.add(new Group(groupHandler.id, groupHandler.modules, groupHandler.plugins, groupHandler.imports));
 		}
 
-		public void prohibit(String range, Action<ProhibitedVersionHandler> action) {
-			ProhibitedVersionHandler prohibitedVersionHandler = new ProhibitedVersionHandler();
-			action.execute(prohibitedVersionHandler);
-			try {
-				this.prohibitedVersions.add(new ProhibitedVersion(VersionRange.createFromVersionSpec(range),
-						prohibitedVersionHandler.reason));
-			}
-			catch (InvalidVersionSpecificationException ex) {
-				throw new InvalidUserCodeException("Invalid version range", ex);
-			}
+		public void prohibit(Action<ProhibitedHandler> action) {
+			ProhibitedHandler handler = new ProhibitedHandler();
+			action.execute(handler);
+			this.prohibitedVersions.add(new ProhibitedVersion(handler.versionRange, handler.startsWith,
+					handler.endsWith, handler.contains, handler.reason));
 		}
 
 		public void dependencyVersions(Action<DependencyVersionsHandler> action) {
@@ -269,9 +270,50 @@ public class BomExtension {
 
 		}
 
-		public static class ProhibitedVersionHandler {
+		public static class ProhibitedHandler {
 
 			private String reason;
+
+			private final List<String> startsWith = new ArrayList<>();
+
+			private final List<String> endsWith = new ArrayList<>();
+
+			private final List<String> contains = new ArrayList<>();
+
+			private VersionRange versionRange;
+
+			public void versionRange(String versionRange) {
+				try {
+					this.versionRange = VersionRange.createFromVersionSpec(versionRange);
+				}
+				catch (InvalidVersionSpecificationException ex) {
+					throw new InvalidUserCodeException("Invalid version range", ex);
+				}
+			}
+
+			public void startsWith(String startsWith) {
+				this.startsWith.add(startsWith);
+			}
+
+			public void startsWith(Collection<String> startsWith) {
+				this.startsWith.addAll(startsWith);
+			}
+
+			public void endsWith(String endsWith) {
+				this.endsWith.add(endsWith);
+			}
+
+			public void endsWith(Collection<String> endsWith) {
+				this.endsWith.addAll(endsWith);
+			}
+
+			public void contains(String contains) {
+				this.contains.add(contains);
+			}
+
+			public void contains(List<String> contains) {
+				this.contains.addAll(contains);
+			}
 
 			public void because(String because) {
 				this.reason = because;
@@ -316,7 +358,7 @@ public class BomExtension {
 						closure.setResolveStrategy(Closure.DELEGATE_FIRST);
 						closure.setDelegate(moduleHandler);
 						closure.call(moduleHandler);
-						return new Module(name, moduleHandler.type, moduleHandler.exclusions);
+						return new Module(name, moduleHandler.type, moduleHandler.classifier, moduleHandler.exclusions);
 					}
 				}
 				throw new InvalidUserDataException("Invalid configuration for module '" + name + "'");
@@ -328,12 +370,18 @@ public class BomExtension {
 
 				private String type;
 
+				private String classifier;
+
 				public void exclude(Map<String, String> exclusion) {
 					this.exclusions.add(new Exclusion(exclusion.get("group"), exclusion.get("module")));
 				}
 
 				public void setType(String type) {
 					this.type = type;
+				}
+
+				public void setClassifier(String classifier) {
+					this.classifier = classifier;
 				}
 
 			}

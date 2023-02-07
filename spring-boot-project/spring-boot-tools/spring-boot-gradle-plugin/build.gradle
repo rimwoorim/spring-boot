@@ -28,6 +28,7 @@ dependencies {
 
 	testImplementation(project(":spring-boot-project:spring-boot-tools:spring-boot-test-support"))
 	testImplementation(project(":spring-boot-project:spring-boot-tools:spring-boot-gradle-test-support"))
+	testImplementation("com.tngtech.archunit:archunit-junit5:0.22.0")
 	testImplementation("org.assertj:assertj-core")
 	testImplementation("org.junit.jupiter:junit-jupiter")
 	testImplementation("org.mockito:mockito-core")
@@ -70,6 +71,10 @@ tasks.withType(org.asciidoctor.gradle.jvm.AbstractAsciidoctorTask) {
 	}
 }
 
+tasks.named('test') {
+	inputs.dir('src/docs/gradle').withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName('buildScripts')
+}
+
 asciidoctor {
 	sources {
 		include "index.adoc"
@@ -92,6 +97,8 @@ javadoc {
 		splitIndex = true
 		use = true
 		windowTitle = "Spring Boot Gradle Plugin ${project.version} API"
+		links "https://docs.gradle.org/$gradle.gradleVersion/javadoc/"
+		links "https://docs.oracle.com/javase/8/docs/api/"
 	}
 }
 
@@ -112,4 +119,8 @@ task zip(type: Zip) {
 
 artifacts {
 	"documentation" zip
+}
+
+toolchain {
+	maximumCompatibleJavaVersion = JavaLanguageVersion.of(18)
 }

@@ -27,7 +27,6 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchPar
 import graphql.schema.GraphQLObjectType;
 import io.micrometer.core.instrument.Tag;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 
 /**
@@ -42,13 +41,13 @@ public final class GraphQlTags {
 
 	private static final Tag OUTCOME_ERROR = Tag.of("outcome", "ERROR");
 
-	private static final Tag UNKNOWN_ERRORTYPE = Tag.of("errorType", "UNKNOWN");
+	private static final Tag UNKNOWN_ERROR_TYPE = Tag.of("error.type", "UNKNOWN");
 
 	private GraphQlTags() {
 
 	}
 
-	public static Tag executionOutcome(ExecutionResult result, @Nullable Throwable exception) {
+	public static Tag executionOutcome(ExecutionResult result, Throwable exception) {
 		if (exception == null && result.getErrors().isEmpty()) {
 			return OUTCOME_SUCCESS;
 		}
@@ -60,9 +59,9 @@ public final class GraphQlTags {
 	public static Tag errorType(GraphQLError error) {
 		ErrorClassification errorType = error.getErrorType();
 		if (errorType instanceof ErrorType) {
-			return Tag.of("errorType", ((ErrorType) errorType).name());
+			return Tag.of("error.type", ((ErrorType) errorType).name());
 		}
-		return UNKNOWN_ERRORTYPE;
+		return UNKNOWN_ERROR_TYPE;
 	}
 
 	public static Tag errorPath(GraphQLError error) {
@@ -81,10 +80,10 @@ public final class GraphQlTags {
 				}
 			}
 		}
-		return Tag.of("errorPath", builder.toString());
+		return Tag.of("error.path", builder.toString());
 	}
 
-	public static Tag dataFetchingOutcome(@Nullable Throwable exception) {
+	public static Tag dataFetchingOutcome(Throwable exception) {
 		return (exception != null) ? OUTCOME_ERROR : OUTCOME_SUCCESS;
 	}
 

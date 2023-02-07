@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.InvalidUserDataException;
@@ -33,7 +34,6 @@ import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.plugins.BasePlugin;
-import org.gradle.api.plugins.Convention;
 import org.gradle.api.plugins.JavaApplication;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
@@ -43,6 +43,7 @@ import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.work.DisableCachingByDefault;
 
 import org.springframework.boot.gradle.dsl.SpringBootExtension;
 import org.springframework.boot.loader.tools.MainClassFinder;
@@ -53,6 +54,7 @@ import org.springframework.boot.loader.tools.MainClassFinder;
  * @author Andy Wilkinson
  * @since 2.4
  */
+@DisableCachingByDefault(because = "Not worth caching")
 public class ResolveMainClassName extends DefaultTask {
 
 	private static final String SPRING_BOOT_APPLICATION_CLASS_NAME = "org.springframework.boot.autoconfigure.SpringBootApplication";
@@ -86,7 +88,17 @@ public class ResolveMainClassName extends DefaultTask {
 	 * @param classpath the classpath
 	 */
 	public void setClasspath(FileCollection classpath) {
-		this.classpath = classpath;
+		setClasspath((Object) classpath);
+	}
+
+	/**
+	 * Sets the classpath that the task will examine when resolving the main class name.
+	 * The given {@code classpath} is evaluated as per {@link Project#files(Object...)}.
+	 * @param classpath the classpath
+	 * @since 2.5.10
+	 */
+	public void setClasspath(Object classpath) {
+		this.classpath = getProject().files(classpath);
 	}
 
 	/**
@@ -142,16 +154,15 @@ public class ResolveMainClassName extends DefaultTask {
 	}
 
 	static TaskProvider<ResolveMainClassName> registerForTask(String taskName, Project project,
-			FileCollection classpath) {
+			Callable<FileCollection> classpath) {
 		TaskProvider<ResolveMainClassName> resolveMainClassNameProvider = project.getTasks()
 				.register(taskName + "MainClassName", ResolveMainClassName.class, (resolveMainClassName) -> {
-					Convention convention = project.getConvention();
 					resolveMainClassName.setDescription(
 							"Resolves the name of the application's main class for the " + taskName + " task.");
 					resolveMainClassName.setGroup(BasePlugin.BUILD_GROUP);
 					resolveMainClassName.setClasspath(classpath);
 					resolveMainClassName.getConfiguredMainClassName().convention(project.provider(() -> {
-						String javaApplicationMainClass = getJavaApplicationMainClass(convention);
+						String javaApplicationMainClass = getJavaApplicationMainClass(project);
 						if (javaApplicationMainClass != null) {
 							return javaApplicationMainClass;
 						}
@@ -165,18 +176,12 @@ public class ResolveMainClassName extends DefaultTask {
 		return resolveMainClassNameProvider;
 	}
 
-	@SuppressWarnings("deprecation")
-	private static String getJavaApplicationMainClass(Convention convention) {
-		JavaApplication javaApplication = convention.findByType(JavaApplication.class);
+	private static String getJavaApplicationMainClass(Project project) {
+		JavaApplication javaApplication = project.getExtensions().findByType(JavaApplication.class);
 		if (javaApplication == null) {
 			return null;
 		}
-		try {
-			return javaApplication.getMainClass().getOrNull();
-		}
-		catch (NoSuchMethodError ex) {
-			return javaApplication.getMainClassName();
-		}
+		return javaApplication.getMainClass().getOrNull();
 	}
 
 	private static final class ClassNameReader implements Transformer<String, RegularFile> {

@@ -38,6 +38,9 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
+import io.spring.javaformat.config.IndentationStyle;
+import io.spring.javaformat.config.JavaBaseline;
+import io.spring.javaformat.config.JavaFormatConfig;
 import io.spring.javaformat.formatter.FileEdit;
 import io.spring.javaformat.formatter.FileFormatter;
 import org.gradle.api.DefaultTask;
@@ -61,12 +64,11 @@ import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
 import org.gradle.api.tasks.Classpath;
-import org.gradle.api.tasks.Copy;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.OutputDirectory;
@@ -75,6 +77,7 @@ import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
+import org.gradle.api.tasks.Sync;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskExecutionException;
 import org.gradle.api.tasks.bundling.Jar;
@@ -97,6 +100,20 @@ import org.springframework.util.Assert;
  * @author Phillip Webb
  */
 public class MavenPluginPlugin implements Plugin<Project> {
+
+	private static final JavaFormatConfig FORMATTER_CONFIG = new JavaFormatConfig() {
+
+		@Override
+		public JavaBaseline getJavaBaseline() {
+			return JavaBaseline.V8;
+		}
+
+		@Override
+		public IndentationStyle getIndentationStyle() {
+			return IndentationStyle.TABS;
+		}
+
+	};
 
 	@Override
 	public void apply(Project project) {
@@ -137,7 +154,7 @@ public class MavenPluginPlugin implements Plugin<Project> {
 				.set(new File(project.getBuildDir(), "runtime-classpath-repository"));
 		project.getDependencies()
 				.components((components) -> components.all(MavenRepositoryComponentMetadataRule.class));
-		Copy task = project.getTasks().create("populateIntTestMavenRepository", Copy.class);
+		Sync task = project.getTasks().create("populateIntTestMavenRepository", Sync.class);
 		task.setDestinationDir(new File(project.getBuildDir(), "int-test-maven-repository"));
 		task.with(copyIntTestMavenRepositoryFiles(project, runtimeClasspathMavenRepository));
 		task.dependsOn(project.getTasks().getByName(MavenRepositoryPlugin.PUBLISH_TO_PROJECT_REPOSITORY_TASK_NAME));
@@ -164,7 +181,7 @@ public class MavenPluginPlugin implements Plugin<Project> {
 	private MavenExec addGenerateHelpMojoTask(Project project, Jar jarTask) {
 		File helpMojoDir = new File(project.getBuildDir(), "help-mojo");
 		MavenExec task = createGenerateHelpMojoTask(project, helpMojoDir);
-		task.dependsOn(createCopyHelpMojoInputsTask(project, helpMojoDir));
+		task.dependsOn(createSyncHelpMojoInputsTask(project, helpMojoDir));
 		includeHelpMojoInJar(jarTask, task);
 		return task;
 	}
@@ -177,8 +194,8 @@ public class MavenPluginPlugin implements Plugin<Project> {
 		return task;
 	}
 
-	private Copy createCopyHelpMojoInputsTask(Project project, File helpMojoDir) {
-		Copy task = project.getTasks().create("copyHelpMojoInputs", Copy.class);
+	private Sync createSyncHelpMojoInputsTask(Project project, File helpMojoDir) {
+		Sync task = project.getTasks().create("syncHelpMojoInputs", Sync.class);
 		task.setDestinationDir(helpMojoDir);
 		File pomFile = new File(project.getProjectDir(), "src/maven/resources/pom.xml");
 		task.from(pomFile, (copy) -> replaceVersionPlaceholder(copy, project));
@@ -195,11 +212,11 @@ public class MavenPluginPlugin implements Plugin<Project> {
 		File generatedHelpMojoDir = new File(project.getBuildDir(), "generated/sources/helpMojo");
 		SourceSet mainSourceSet = getMainSourceSet(project);
 		project.getTasks().withType(Javadoc.class, this::setJavadocOptions);
-		FormatHelpMojoSourceTask copyFormattedHelpMojoSourceTask = createCopyFormattedHelpMojoSourceTask(project,
-				generateHelpMojoTask, generatedHelpMojoDir);
-		project.getTasks().getByName(mainSourceSet.getCompileJavaTaskName()).dependsOn(copyFormattedHelpMojoSourceTask);
-		mainSourceSet.java((javaSources) -> javaSources.srcDir(copyFormattedHelpMojoSourceTask));
-		Copy pluginDescriptorInputs = createCopyPluginDescriptorInputs(project, pluginDescriptorDir, mainSourceSet);
+		FormatHelpMojoSource formattedHelpMojoSource = createFormatHelpMojoSource(project, generateHelpMojoTask,
+				generatedHelpMojoDir);
+		project.getTasks().getByName(mainSourceSet.getCompileJavaTaskName()).dependsOn(formattedHelpMojoSource);
+		mainSourceSet.java((javaSources) -> javaSources.srcDir(formattedHelpMojoSource));
+		Sync pluginDescriptorInputs = createSyncPluginDescriptorInputs(project, pluginDescriptorDir, mainSourceSet);
 		pluginDescriptorInputs.dependsOn(mainSourceSet.getClassesTaskName());
 		MavenExec task = createGeneratePluginDescriptorTask(project, pluginDescriptorDir);
 		task.dependsOn(pluginDescriptorInputs);
@@ -208,7 +225,7 @@ public class MavenPluginPlugin implements Plugin<Project> {
 	}
 
 	private SourceSet getMainSourceSet(Project project) {
-		SourceSetContainer sourceSets = project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
+		SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
 		return sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 	}
 
@@ -217,17 +234,17 @@ public class MavenPluginPlugin implements Plugin<Project> {
 		options.addMultilineStringsOption("tag").setValue(Arrays.asList("goal:X", "requiresProject:X", "threadSafe:X"));
 	}
 
-	private FormatHelpMojoSourceTask createCopyFormattedHelpMojoSourceTask(Project project,
-			MavenExec generateHelpMojoTask, File generatedHelpMojoDir) {
-		FormatHelpMojoSourceTask copyFormattedHelpMojoSourceTask = project.getTasks()
-				.create("copyFormattedHelpMojoSource", FormatHelpMojoSourceTask.class);
-		copyFormattedHelpMojoSourceTask.setGenerator(generateHelpMojoTask);
-		copyFormattedHelpMojoSourceTask.setOutputDir(generatedHelpMojoDir);
-		return copyFormattedHelpMojoSourceTask;
+	private FormatHelpMojoSource createFormatHelpMojoSource(Project project, MavenExec generateHelpMojoTask,
+			File generatedHelpMojoDir) {
+		FormatHelpMojoSource formatHelpMojoSource = project.getTasks().create("formatHelpMojoSource",
+				FormatHelpMojoSource.class);
+		formatHelpMojoSource.setGenerator(generateHelpMojoTask);
+		formatHelpMojoSource.setOutputDir(generatedHelpMojoDir);
+		return formatHelpMojoSource;
 	}
 
-	private Copy createCopyPluginDescriptorInputs(Project project, File destination, SourceSet sourceSet) {
-		Copy pluginDescriptorInputs = project.getTasks().create("copyPluginDescriptorInputs", Copy.class);
+	private Sync createSyncPluginDescriptorInputs(Project project, File destination, SourceSet sourceSet) {
+		Sync pluginDescriptorInputs = project.getTasks().create("syncPluginDescriptorInputs", Sync.class);
 		pluginDescriptorInputs.setDestinationDir(destination);
 		File pomFile = new File(project.getProjectDir(), "src/maven/resources/pom.xml");
 		pluginDescriptorInputs.from(pomFile, (copy) -> replaceVersionPlaceholder(copy, project));
@@ -274,7 +291,7 @@ public class MavenPluginPlugin implements Plugin<Project> {
 				.map((dir) -> dir.file("extracted-versions.properties")));
 	}
 
-	public static class FormatHelpMojoSourceTask extends DefaultTask {
+	public static class FormatHelpMojoSource extends DefaultTask {
 
 		private Task generator;
 
@@ -297,7 +314,7 @@ public class MavenPluginPlugin implements Plugin<Project> {
 
 		@TaskAction
 		void syncAndFormat() {
-			FileFormatter formatter = new FileFormatter();
+			FileFormatter formatter = new FileFormatter(FORMATTER_CONFIG);
 			for (File output : this.generator.getOutputs().getFiles()) {
 				formatter.formatFiles(getProject().fileTree(output), StandardCharsets.UTF_8)
 						.forEach((edit) -> save(output, edit));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -265,8 +265,8 @@ class QuartzEndpointDocumentationTests extends MockMvcEndpointDocumentationTests
 								"Whether the job should be re-executed if a 'recovery' or 'fail-over' situation is encountered."),
 						fieldWithPath("data.*").description("Job data map as key/value pairs, if any."),
 						fieldWithPath("triggers").description("An array of triggers associated to the job, if any."),
-						fieldWithPath("triggers.[].group").description("Name of the the trigger group."),
-						fieldWithPath("triggers.[].name").description("Name of the the trigger."),
+						fieldWithPath("triggers.[].group").description("Name of the trigger group."),
+						fieldWithPath("triggers.[].name").description("Name of the trigger."),
 						previousFireTime("triggers.[]."), nextFireTime("triggers.[]."), priority("triggers.[]."))));
 	}
 

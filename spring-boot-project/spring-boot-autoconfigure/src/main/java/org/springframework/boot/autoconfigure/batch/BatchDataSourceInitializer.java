@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import org.springframework.util.StringUtils;
  * @author Dave Syer
  * @author Vedran Pavic
  * @since 1.0.0
- * @deprecated since 2.6.0 for removal in 2.8.0 in favor of
+ * @deprecated since 2.6.0 for removal in 3.0.0 in favor of
  * {@link BatchDataSourceScriptDatabaseInitializer}
  */
 @Deprecated
@@ -49,13 +49,13 @@ public class BatchDataSourceInitializer extends org.springframework.boot.jdbc.Ab
 	protected org.springframework.boot.jdbc.DataSourceInitializationMode getMode() {
 		DatabaseInitializationMode mode = this.jdbcProperties.getInitializeSchema();
 		switch (mode) {
-		case ALWAYS:
-			return org.springframework.boot.jdbc.DataSourceInitializationMode.ALWAYS;
-		case EMBEDDED:
-			return org.springframework.boot.jdbc.DataSourceInitializationMode.EMBEDDED;
-		case NEVER:
-		default:
-			return org.springframework.boot.jdbc.DataSourceInitializationMode.NEVER;
+			case ALWAYS:
+				return org.springframework.boot.jdbc.DataSourceInitializationMode.ALWAYS;
+			case EMBEDDED:
+				return org.springframework.boot.jdbc.DataSourceInitializationMode.EMBEDDED;
+			case NEVER:
+			default:
+				return org.springframework.boot.jdbc.DataSourceInitializationMode.NEVER;
 		}
 	}
 

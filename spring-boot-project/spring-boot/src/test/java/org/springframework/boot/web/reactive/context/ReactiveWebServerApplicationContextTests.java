@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import org.springframework.http.server.reactive.HttpHandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-import static org.mockito.Mockito.verify;
+import static org.mockito.BDDMockito.then;
 
 /**
  * Tests for {@link ReactiveWebServerApplicationContext}.
@@ -61,7 +61,7 @@ class ReactiveWebServerApplicationContextTests {
 	void whenThereIsNoWebServerFactoryBeanThenContextRefreshWillFail() {
 		assertThatExceptionOfType(ApplicationContextException.class).isThrownBy(() -> this.context.refresh())
 				.withMessageContaining(
-						"Unable to start ReactiveWebApplicationContext due to missing ReactiveWebServerFactory bean");
+						"Unable to start ReactiveWebServerApplicationContext due to missing ReactiveWebServerFactory bean");
 	}
 
 	@Test
@@ -123,7 +123,7 @@ class ReactiveWebServerApplicationContextTests {
 		this.context.refresh();
 		MockReactiveWebServerFactory factory = this.context.getBean(MockReactiveWebServerFactory.class);
 		this.context.close();
-		verify(factory.getWebServer()).stop();
+		then(factory.getWebServer()).should().stop();
 	}
 
 	@Test

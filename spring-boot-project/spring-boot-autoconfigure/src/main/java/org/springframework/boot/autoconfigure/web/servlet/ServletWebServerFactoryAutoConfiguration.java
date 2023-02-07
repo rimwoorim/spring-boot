@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.RootBeanDefinition;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -61,7 +62,7 @@ import org.springframework.web.filter.ForwardedHeaderFilter;
  * @author Stephane Nicoll
  * @since 2.0.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 @ConditionalOnClass(ServletRequest.class)
 @ConditionalOnWebApplication(type = Type.SERVLET)
@@ -88,15 +89,34 @@ public class ServletWebServerFactoryAutoConfiguration {
 		return new TomcatServletWebServerFactoryCustomizer(serverProperties);
 	}
 
-	@Bean
-	@ConditionalOnMissingFilterBean(ForwardedHeaderFilter.class)
+	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnProperty(value = "server.forward-headers-strategy", havingValue = "framework")
-	public FilterRegistrationBean<ForwardedHeaderFilter> forwardedHeaderFilter() {
-		ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
-		FilterRegistrationBean<ForwardedHeaderFilter> registration = new FilterRegistrationBean<>(filter);
-		registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
-		registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-		return registration;
+	@ConditionalOnMissingFilterBean(ForwardedHeaderFilter.class)
+	static class ForwardedHeaderFilterConfiguration {
+
+		@Bean
+		@ConditionalOnClass(name = "org.apache.catalina.startup.Tomcat")
+		ForwardedHeaderFilterCustomizer tomcatForwardedHeaderFilterCustomizer(ServerProperties serverProperties) {
+			return (filter) -> filter.setRelativeRedirects(serverProperties.getTomcat().isUseRelativeRedirects());
+		}
+
+		@Bean
+		FilterRegistrationBean<ForwardedHeaderFilter> forwardedHeaderFilter(
+				ObjectProvider<ForwardedHeaderFilterCustomizer> customizerProvider) {
+			ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+			customizerProvider.ifAvailable((customizer) -> customizer.customize(filter));
+			FilterRegistrationBean<ForwardedHeaderFilter> registration = new FilterRegistrationBean<>(filter);
+			registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+			registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+			return registration;
+		}
+
+	}
+
+	interface ForwardedHeaderFilterCustomizer {
+
+		void customize(ForwardedHeaderFilter filter);
+
 	}
 
 	/**

@@ -18,8 +18,6 @@ package org.springframework.boot.autoconfigure.data.elasticsearch;
 
 import java.util.Collections;
 
-import org.elasticsearch.action.support.IndicesOptions;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -33,7 +31,6 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.ElasticsearchRestTemplate;
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchTemplate;
-import org.springframework.data.elasticsearch.core.RefreshPolicy;
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchCustomConversions;
 import org.springframework.data.elasticsearch.core.convert.MappingElasticsearchConverter;
@@ -106,10 +103,7 @@ abstract class ElasticsearchDataConfiguration {
 		@ConditionalOnBean(ReactiveElasticsearchClient.class)
 		ReactiveElasticsearchTemplate reactiveElasticsearchTemplate(ReactiveElasticsearchClient client,
 				ElasticsearchConverter converter) {
-			ReactiveElasticsearchTemplate template = new ReactiveElasticsearchTemplate(client, converter);
-			template.setIndicesOptions(IndicesOptions.strictExpandOpenAndForbidClosed());
-			template.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-			return template;
+			return new ReactiveElasticsearchTemplate(client, converter);
 		}
 
 	}

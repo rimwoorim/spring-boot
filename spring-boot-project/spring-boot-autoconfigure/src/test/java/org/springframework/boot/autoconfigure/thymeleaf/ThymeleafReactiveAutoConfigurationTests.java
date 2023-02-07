@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.context.IContext;
+import org.thymeleaf.extras.springsecurity5.dialect.SpringSecurityDialect;
 import org.thymeleaf.extras.springsecurity5.util.SpringSecurityContextUtils;
 import org.thymeleaf.spring5.ISpringWebFluxTemplateEngine;
 import org.thymeleaf.spring5.SpringWebFluxTemplateEngine;
@@ -36,6 +37,7 @@ import org.thymeleaf.spring5.view.reactive.ThymeleafReactiveViewResolver;
 import org.thymeleaf.templateresolver.ITemplateResolver;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -88,10 +90,22 @@ class ThymeleafReactiveAutoConfigurationTests {
 	}
 
 	@Test
+	void defaultMediaTypes() {
+		this.contextRunner.run(
+				(context) -> assertThat(context.getBean(ThymeleafReactiveViewResolver.class).getSupportedMediaTypes())
+						.containsExactly(MediaType.TEXT_HTML, MediaType.APPLICATION_XHTML_XML,
+								MediaType.APPLICATION_XML, MediaType.TEXT_XML, MediaType.APPLICATION_RSS_XML,
+								MediaType.APPLICATION_ATOM_XML, new MediaType("application", "javascript"),
+								new MediaType("application", "ecmascript"), new MediaType("text", "javascript"),
+								new MediaType("text", "ecmascript"), MediaType.APPLICATION_JSON,
+								new MediaType("text", "css"), MediaType.TEXT_PLAIN, MediaType.TEXT_EVENT_STREAM));
+	}
+
+	@Test
 	void overrideMediaTypes() {
 		this.contextRunner.withPropertyValues("spring.thymeleaf.reactive.media-types:text/html,text/plain").run(
 				(context) -> assertThat(context.getBean(ThymeleafReactiveViewResolver.class).getSupportedMediaTypes())
-						.contains(MediaType.TEXT_HTML, MediaType.TEXT_PLAIN));
+						.containsExactly(MediaType.TEXT_HTML, MediaType.TEXT_PLAIN));
 	}
 
 	@Test
@@ -202,6 +216,12 @@ class ThymeleafReactiveAutoConfigurationTests {
 			String result = engine.process("security-dialect", attrs);
 			assertThat(result).isEqualTo("<html><body><div>alice</div></body></html>" + System.lineSeparator());
 		});
+	}
+
+	@Test
+	void securityDialectAutoConfigurationBacksOffWithoutSpringSecurity() {
+		this.contextRunner.withClassLoader(new FilteredClassLoader("org.springframework.security"))
+				.run((context) -> assertThat(context).doesNotHaveBean(SpringSecurityDialect.class));
 	}
 
 	@Test

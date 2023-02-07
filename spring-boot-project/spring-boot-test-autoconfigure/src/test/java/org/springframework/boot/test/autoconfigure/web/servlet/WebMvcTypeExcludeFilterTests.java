@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.core.type.classreading.SimpleMetadataReaderFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Repository;
@@ -205,7 +204,9 @@ class WebMvcTypeExcludeFilterTests {
 
 	}
 
-	static class ExampleWebSecurityConfigurer extends WebSecurityConfigurerAdapter {
+	@SuppressWarnings("deprecation")
+	static class ExampleWebSecurityConfigurer
+			extends org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter {
 
 	}
 

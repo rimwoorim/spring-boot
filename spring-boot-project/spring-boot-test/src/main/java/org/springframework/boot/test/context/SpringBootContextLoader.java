@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.boot.ApplicationContextFactory;
+import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
@@ -55,6 +56,7 @@ import org.springframework.test.context.web.WebMergedContextConfiguration;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.ConfigurableWebApplicationContext;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 
 /**
@@ -103,13 +105,23 @@ public class SpringBootContextLoader extends AbstractContextLoader {
 		}
 		else if (config instanceof ReactiveWebMergedContextConfiguration) {
 			application.setWebApplicationType(WebApplicationType.REACTIVE);
-			if (!isEmbeddedWebEnvironment(config)) {
-				application.setApplicationContextFactory(
-						ApplicationContextFactory.of(GenericReactiveWebApplicationContext::new));
-			}
 		}
 		else {
 			application.setWebApplicationType(WebApplicationType.NONE);
+		}
+		application.setApplicationContextFactory((type) -> {
+			if (type != WebApplicationType.NONE && !isEmbeddedWebEnvironment(config)) {
+				if (type == WebApplicationType.REACTIVE) {
+					return new GenericReactiveWebApplicationContext();
+				}
+				else if (type == WebApplicationType.SERVLET) {
+					return new GenericWebApplicationContext();
+				}
+			}
+			return ApplicationContextFactory.DEFAULT.create(type);
+		});
+		if (config.getParent() != null) {
+			application.setBannerMode(Mode.OFF);
 		}
 		application.setInitializers(initializers);
 		ConfigurableEnvironment environment = getEnvironment();
@@ -261,21 +273,45 @@ public class SpringBootContextLoader extends AbstractContextLoader {
 				List<ApplicationContextInitializer<?>> initializers) {
 			WebMergedContextConfiguration webConfiguration = (WebMergedContextConfiguration) configuration;
 			addMockServletContext(initializers, webConfiguration);
-			application.setApplicationContextFactory((webApplicationType) -> new GenericWebApplicationContext());
 		}
 
 		private void addMockServletContext(List<ApplicationContextInitializer<?>> initializers,
 				WebMergedContextConfiguration webConfiguration) {
 			SpringBootMockServletContext servletContext = new SpringBootMockServletContext(
 					webConfiguration.getResourceBasePath());
-			initializers.add(0, new ServletContextApplicationContextInitializer(servletContext, true));
+			initializers.add(0, new DefensiveWebApplicationContextInitializer(
+					new ServletContextApplicationContextInitializer(servletContext, true)));
+		}
+
+		/**
+		 * Decorator for {@link ServletContextApplicationContextInitializer} that prevents
+		 * a failure when the context type is not as was predicted when the initializer
+		 * was registered. This can occur when spring.main.web-application-type is set to
+		 * something other than servlet.
+		 */
+		private static final class DefensiveWebApplicationContextInitializer
+				implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+			private final ServletContextApplicationContextInitializer delegate;
+
+			private DefensiveWebApplicationContextInitializer(ServletContextApplicationContextInitializer delegate) {
+				this.delegate = delegate;
+			}
+
+			@Override
+			public void initialize(ConfigurableApplicationContext applicationContext) {
+				if (applicationContext instanceof ConfigurableWebApplicationContext) {
+					this.delegate.initialize((ConfigurableWebApplicationContext) applicationContext);
+				}
+			}
+
 		}
 
 	}
 
 	/**
 	 * Adapts a {@link ContextCustomizer} to a {@link ApplicationContextInitializer} so
-	 * that it can be triggered via {@link SpringApplication}.
+	 * that it can be triggered through {@link SpringApplication}.
 	 */
 	private static class ContextCustomizerAdapter
 			implements ApplicationContextInitializer<ConfigurableApplicationContext> {

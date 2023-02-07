@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package org.springframework.boot.build.classpath;
 
-import java.io.IOException;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -52,7 +51,7 @@ public class CheckClasspathForProhibitedDependencies extends DefaultTask {
 	}
 
 	@TaskAction
-	public void checkForProhibitedDependencies() throws IOException {
+	public void checkForProhibitedDependencies() {
 		TreeSet<String> prohibited = this.classpath.getResolvedConfiguration().getResolvedArtifacts().stream()
 				.map((artifact) -> artifact.getModuleVersion().getId()).filter(this::prohibited)
 				.map((id) -> id.getGroup() + ":" + id.getName()).collect(Collectors.toCollection(TreeSet::new));

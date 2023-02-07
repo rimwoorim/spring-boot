@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 import org.gradle.api.Action;
 import org.gradle.api.Plugin;
@@ -31,12 +32,10 @@ import org.gradle.api.attributes.Bundling;
 import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.FileCollection;
-import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.ApplicationPlugin;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
@@ -46,7 +45,6 @@ import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.jvm.toolchain.JavaToolchainSpec;
-import org.gradle.util.GradleVersion;
 
 import org.springframework.boot.gradle.tasks.bundling.BootBuildImage;
 import org.springframework.boot.gradle.tasks.bundling.BootJar;
@@ -83,7 +81,7 @@ final class JavaPluginAction implements PluginApplicationAction {
 		configureBootBuildImageTask(project, bootJar);
 		configureArtifactPublication(bootJar);
 		configureBootRunTask(project);
-		configureUtf8Encoding(project);
+		project.afterEvaluate(this::configureUtf8Encoding);
 		configureParametersCompilerArg(project);
 		configureAdditionalMetadataLocations(project);
 	}
@@ -99,13 +97,12 @@ final class JavaPluginAction implements PluginApplicationAction {
 	}
 
 	private TaskProvider<BootJar> configureBootJarTask(Project project) {
-		SourceSet mainSourceSet = javaPluginConvention(project).getSourceSets()
-				.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+		SourceSet mainSourceSet = sourceSets(project).getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 		Configuration developmentOnly = project.getConfigurations()
 				.getByName(SpringBootPlugin.DEVELOPMENT_ONLY_CONFIGURATION_NAME);
 		Configuration productionRuntimeClasspath = project.getConfigurations()
 				.getByName(SpringBootPlugin.PRODUCTION_RUNTIME_CLASSPATH_CONFIGURATION_NAME);
-		FileCollection classpath = mainSourceSet.getRuntimeClasspath()
+		Callable<FileCollection> classpath = () -> mainSourceSet.getRuntimeClasspath()
 				.minus((developmentOnly.minus(productionRuntimeClasspath))).filter(new JarTypeFileSpec());
 		TaskProvider<ResolveMainClassName> resolveMainClassName = ResolveMainClassName
 				.registerForTask(SpringBootPlugin.BOOT_JAR_TASK_NAME, project, classpath);
@@ -126,19 +123,18 @@ final class JavaPluginAction implements PluginApplicationAction {
 			buildImage.setDescription("Builds an OCI image of the application using the output of the bootJar task");
 			buildImage.setGroup(BasePlugin.BUILD_GROUP);
 			buildImage.getArchiveFile().set(bootJar.get().getArchiveFile());
-			buildImage.getTargetJavaVersion()
-					.set(project.provider(() -> javaPluginConvention(project).getTargetCompatibility()));
+			buildImage.getTargetJavaVersion().set(project.provider(
+					() -> project.getExtensions().getByType(JavaPluginExtension.class).getTargetCompatibility()));
 		});
 	}
 
 	private void configureArtifactPublication(TaskProvider<BootJar> bootJar) {
-		LazyPublishArtifact artifact = new LazyPublishArtifact(bootJar);
-		this.singlePublishedArtifact.addCandidate(artifact);
+		this.singlePublishedArtifact.addJarCandidate(bootJar);
 	}
 
 	private void configureBootRunTask(Project project) {
-		FileCollection classpath = javaPluginConvention(project).getSourceSets()
-				.findByName(SourceSet.MAIN_SOURCE_SET_NAME).getRuntimeClasspath().filter(new JarTypeFileSpec());
+		Callable<FileCollection> classpath = () -> sourceSets(project).findByName(SourceSet.MAIN_SOURCE_SET_NAME)
+				.getRuntimeClasspath().filter(new JarTypeFileSpec());
 		TaskProvider<ResolveMainClassName> resolveProvider = ResolveMainClassName.registerForTask("bootRun", project,
 				classpath);
 		project.getTasks().register("bootRun", BootRun.class, (run) -> {
@@ -157,31 +153,28 @@ final class JavaPluginAction implements PluginApplicationAction {
 	}
 
 	private void configureToolchainConvention(Project project, BootRun run) {
-		if (isGradle67OrLater()) {
-			JavaToolchainSpec toolchain = project.getExtensions().getByType(JavaPluginExtension.class).getToolchain();
-			JavaToolchainService toolchainService = project.getExtensions().getByType(JavaToolchainService.class);
-			run.getJavaLauncher().convention(toolchainService.launcherFor(toolchain));
+		JavaToolchainSpec toolchain = project.getExtensions().getByType(JavaPluginExtension.class).getToolchain();
+		JavaToolchainService toolchainService = project.getExtensions().getByType(JavaToolchainService.class);
+		run.getJavaLauncher().convention(toolchainService.launcherFor(toolchain));
+	}
+
+	@SuppressWarnings("deprecation")
+	private SourceSetContainer sourceSets(Project project) {
+		return project.getConvention().getPlugin(org.gradle.api.plugins.JavaPluginConvention.class).getSourceSets();
+	}
+
+	private void configureUtf8Encoding(Project evaluatedProject) {
+		evaluatedProject.getTasks().withType(JavaCompile.class).configureEach(this::configureUtf8Encoding);
+	}
+
+	private void configureUtf8Encoding(JavaCompile compile) {
+		if (compile.getOptions().getEncoding() == null) {
+			compile.getOptions().setEncoding("UTF-8");
 		}
 	}
 
-	private boolean isGradle67OrLater() {
-		return GradleVersion.current().getBaseVersion().compareTo(GradleVersion.version("6.7")) >= 0;
-	}
-
-	private JavaPluginConvention javaPluginConvention(Project project) {
-		return project.getConvention().getPlugin(JavaPluginConvention.class);
-	}
-
-	private void configureUtf8Encoding(Project project) {
-		project.afterEvaluate((evaluated) -> evaluated.getTasks().withType(JavaCompile.class, (compile) -> {
-			if (compile.getOptions().getEncoding() == null) {
-				compile.getOptions().setEncoding("UTF-8");
-			}
-		}));
-	}
-
 	private void configureParametersCompilerArg(Project project) {
-		project.getTasks().withType(JavaCompile.class, (compile) -> {
+		project.getTasks().withType(JavaCompile.class).configureEach((compile) -> {
 			List<String> compilerArgs = compile.getOptions().getCompilerArgs();
 			if (!compilerArgs.contains(PARAMETERS_COMPILER_ARG)) {
 				compilerArgs.add(PARAMETERS_COMPILER_ARG);
@@ -190,14 +183,13 @@ final class JavaPluginAction implements PluginApplicationAction {
 	}
 
 	private void configureAdditionalMetadataLocations(Project project) {
-		project.afterEvaluate((evaluated) -> evaluated.getTasks().withType(JavaCompile.class,
-				this::configureAdditionalMetadataLocations));
+		project.afterEvaluate((evaluated) -> evaluated.getTasks().withType(JavaCompile.class)
+				.configureEach(this::configureAdditionalMetadataLocations));
 	}
 
 	private void configureAdditionalMetadataLocations(JavaCompile compile) {
-		SourceSetContainer sourceSets = compile.getProject().getConvention().getPlugin(JavaPluginConvention.class)
-				.getSourceSets();
-		sourceSets.stream().filter((candidate) -> candidate.getCompileJavaTaskName().equals(compile.getName()))
+		sourceSets(compile.getProject()).stream()
+				.filter((candidate) -> candidate.getCompileJavaTaskName().equals(compile.getName()))
 				.map((match) -> match.getResources().getSrcDirs()).findFirst()
 				.ifPresent((locations) -> compile.doFirst(new AdditionalMetadataLocationsConfigurer(locations)));
 	}

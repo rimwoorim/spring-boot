@@ -34,12 +34,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.graphql.GraphQlService;
+import org.springframework.graphql.ExecutionGraphQlService;
 import org.springframework.graphql.data.method.annotation.support.AnnotatedControllerConfigurer;
 import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.graphql.execution.DataFetcherExceptionResolver;
+import org.springframework.graphql.execution.DataLoaderRegistrar;
 import org.springframework.graphql.execution.GraphQlSource;
-import org.springframework.graphql.execution.MissingSchemaException;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,7 +58,7 @@ class GraphQlAutoConfigurationTests {
 		this.contextRunner.run((context) -> {
 			assertThat(context).hasSingleBean(GraphQlSource.class);
 			assertThat(context).hasSingleBean(BatchLoaderRegistry.class);
-			assertThat(context).hasSingleBean(GraphQlService.class);
+			assertThat(context).hasSingleBean(ExecutionGraphQlService.class);
 			assertThat(context).hasSingleBean(AnnotatedControllerConfigurer.class);
 		});
 	}
@@ -74,11 +74,9 @@ class GraphQlAutoConfigurationTests {
 	}
 
 	@Test
-	void shouldFailWhenSchemaFileIsMissing() {
-		this.contextRunner.withPropertyValues("spring.graphql.schema.locations:classpath:missing/").run((context) -> {
-			assertThat(context).hasFailed();
-			assertThat(context).getFailure().getRootCause().isInstanceOf(MissingSchemaException.class);
-		});
+	void shouldBackoffWhenSchemaFileIsMissing() {
+		this.contextRunner.withPropertyValues("spring.graphql.schema.locations:classpath:missing/")
+				.run((context) -> assertThat(context).hasNotFailed().doesNotHaveBean(GraphQlSource.class));
 	}
 
 	@Test
@@ -169,12 +167,28 @@ class GraphQlAutoConfigurationTests {
 		});
 	}
 
+	@Test
+	void shouldConfigureCustomBatchLoaderRegistry() {
+		this.contextRunner
+				.withBean("customBatchLoaderRegistry", BatchLoaderRegistry.class, () -> mock(BatchLoaderRegistry.class))
+				.run((context) -> {
+					assertThat(context).hasSingleBean(BatchLoaderRegistry.class);
+					assertThat(context.getBean("customBatchLoaderRegistry"))
+							.isSameAs(context.getBean(BatchLoaderRegistry.class));
+					assertThat(context.getBean(ExecutionGraphQlService.class))
+							.extracting("dataLoaderRegistrars",
+									InstanceOfAssertFactories.list(DataLoaderRegistrar.class))
+							.containsOnly(context.getBean(BatchLoaderRegistry.class));
+				});
+	}
+
 	@Configuration(proxyBeanMethods = false)
 	static class CustomGraphQlBuilderConfiguration {
 
 		@Bean
-		GraphQlSource.Builder customGraphQlSourceBuilder() {
-			return GraphQlSource.builder().schemaResources(new ClassPathResource("graphql/schema.graphqls"),
+		GraphQlSource.SchemaResourceBuilder customGraphQlSourceBuilder() {
+			return GraphQlSource.schemaResourceBuilder().schemaResources(
+					new ClassPathResource("graphql/schema.graphqls"),
 					new ClassPathResource("graphql/types/book.graphqls"));
 		}
 
@@ -187,7 +201,7 @@ class GraphQlAutoConfigurationTests {
 		GraphQlSource customGraphQlSource() {
 			ByteArrayResource schemaResource = new ByteArrayResource(
 					"type Query { greeting: String }".getBytes(StandardCharsets.UTF_8));
-			return GraphQlSource.builder().schemaResources(schemaResource).build();
+			return GraphQlSource.schemaResourceBuilder().schemaResources(schemaResource).build();
 		}
 
 	}
@@ -245,7 +259,7 @@ class GraphQlAutoConfigurationTests {
 			public boolean applied = false;
 
 			@Override
-			public void customize(GraphQlSource.Builder builder) {
+			public void customize(GraphQlSource.SchemaResourceBuilder builder) {
 				this.applied = true;
 			}
 

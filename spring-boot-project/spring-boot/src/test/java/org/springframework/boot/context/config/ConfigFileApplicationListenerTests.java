@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -440,7 +440,7 @@ class ConfigFileApplicationListenerTests {
 
 	@Test
 	void profilesAddedToEnvironmentAndViaProperty(CapturedOutput output) {
-		// External profile takes precedence over profile added via the environment
+		// External profile takes precedence over profile added through the environment
 		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.environment, "spring.profiles.active=other");
 		this.environment.addActiveProfile("dev");
 		this.initializer.postProcessEnvironment(this.environment, this.application);
@@ -815,8 +815,8 @@ class ConfigFileApplicationListenerTests {
 		assertThat(environment).has(matchingProfile("morespecific"));
 		assertThat(environment).has(matchingProfile("yetmorespecific"));
 		assertThat(environment).doesNotHave(matchingProfile("missing"));
-		assertThat(output)
-				.contains("The following profiles are active: includeprofile,specific,morespecific,yetmorespecific");
+		assertThat(output).contains(
+				"The following 4 profiles are active: \"includeprofile\", \"specific\", \"morespecific\", \"yetmorespecific\"");
 	}
 
 	@Test

@@ -80,6 +80,7 @@ The following technology-agnostic endpoints are available:
 
 | `shutdown`
 | Lets the application be gracefully shutdown.
+  Only works when using jar packaging.
   Disabled by default.
 
 | `startup`
@@ -316,8 +317,8 @@ TIP: If you want to implement your own strategy for when endpoints are exposed, 
 
 [[actuator.endpoints.security]]
 === Security
-For security purposes, all actuators other than `/health` are disabled by default.
-You can use the configprop:management.endpoints.web.exposure.include[] property to enable the actuators.
+For security purposes, only the `/health` endpoint is exposed over HTTP by default.
+You can use the configprop:management.endpoints.web.exposure.include[] property to configure the endpoints that are exposed.
 
 NOTE: Before setting the `management.endpoints.web.exposure.include`, ensure that the exposed actuators do not contain sensitive information, are secured by placing them behind a firewall, or are secured by something like Spring Security.
 
@@ -328,10 +329,7 @@ If you wish to configure custom security for HTTP endpoints (for example, to all
 
 A typical Spring Security configuration might look something like the following example:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/security/typical/MySecurityConfiguration.java[]
-----
+include::code:typical/MySecurityConfiguration[]
 
 The preceding example uses `EndpointRequest.toAnyEndpoint()` to match a request to any endpoint and then ensures that all have the `ENDPOINT_ADMIN` role.
 Several other matcher methods are also available on `EndpointRequest`.
@@ -351,10 +349,7 @@ You can do so by changing the configprop:management.endpoints.web.exposure.inclu
 
 Additionally, if Spring Security is present, you would need to add custom security configuration that allows unauthenticated access to the endpoints, as the following example shows:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/security/exposeall/MySecurityConfiguration.java[]
-----
+include::code:exposeall/MySecurityConfiguration[]
 
 NOTE: In both of the preceding examples, the configuration applies only to the actuator endpoints.
 Since Spring Boot's security configuration backs off completely in the presence of any `SecurityFilterChain` bean, you need to configure an additional `SecurityFilterChain` bean with rules that apply to the rest of the application.
@@ -443,10 +438,7 @@ If both Jersey and Spring MVC are available, Spring MVC is used.
 
 The following example exposes a read operation that returns a custom object:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/implementingcustom/MyEndpoint.java[tag=read]
-----
+include::code:MyEndpoint[tag=read]
 
 You can also write technology-specific endpoints by using `@JmxEndpoint` or `@WebEndpoint`.
 These endpoints are restricted to their respective technologies.
@@ -480,10 +472,7 @@ Consider the following JSON request body:
 
 You can use this to invoke a write operation that takes `String name` and `int counter` parameters, as the following example shows:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/implementingcustom/MyEndpoint.java[tag=write]
-----
+include::code:../MyEndpoint[tag=write]
 
 TIP: Because endpoints are technology agnostic, only simple types can be specified in the method signature.
 In particular, declaring a single parameter with a `CustomData` type that defines a `name` and `counter` properties is not supported.
@@ -759,13 +748,14 @@ You need to provide an implementation of the `health()` method and return a `Hea
 The `Health` response should include a status and can optionally include additional details to be displayed.
 The following code shows a sample `HealthIndicator` implementation:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/health/writingcustomhealthindicators/MyHealthIndicator.java[]
-----
+include::code:MyHealthIndicator[]
 
 NOTE: The identifier for a given `HealthIndicator` is the name of the bean without the `HealthIndicator` suffix, if it exists.
 In the preceding example, the health information is available in an entry named `my`.
+
+TIP: Health indicators are usually called over HTTP and need to respond before any connection timeouts.
+Spring Boot will log a warning message for any health indicator that takes longer than 10 seconds to respond.
+If you want to configure this threshold, you can use the configprop:management.endpoint.health.logging.slow-indicator-threshold[] property.
 
 In addition to Spring Boot's predefined {spring-boot-actuator-module-code}/health/Status.java[`Status`] types, `Health` can return a custom `Status` that represents a new system state.
 In such cases, you also need to provide a custom implementation of the {spring-boot-actuator-module-code}/health/StatusAggregator.java[`StatusAggregator`] interface, or you must configure the default implementation by using the configprop:management.endpoint.health.status.order[] configuration property.
@@ -837,10 +827,7 @@ If you need to register a regular `HealthContributor`, you should wrap it with `
 To provide custom health information from a reactive API, you can register Spring beans that implement the {spring-boot-actuator-module-code}/health/ReactiveHealthIndicator.java[`ReactiveHealthIndicator`] interface.
 The following code shows a sample `ReactiveHealthIndicator` implementation:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/health/reactivehealthindicators/MyReactiveHealthIndicator.java[]
-----
+include::code:MyReactiveHealthIndicator[]
 
 TIP: To handle the error automatically, consider extending from `AbstractReactiveHealthIndicator`.
 
@@ -1012,7 +999,10 @@ These health groups are automatically enabled only if the application <<deployme
 You can enable them in any environment by using the configprop:management.endpoint.health.probes.enabled[] configuration property.
 
 NOTE: If an application takes longer to start than the configured liveness period, Kubernetes mentions the `"startupProbe"` as a possible solution.
-The `"startupProbe"` is not necessarily needed here, as the `"readinessProbe"` fails until all startup tasks are done. See the section that describes <<actuator#actuator.endpoints.kubernetes-probes.lifecycle,how probes behave during the application lifecycle>>.
+Generally speaking, the `"startupProbe"` is not necessarily needed here, as the `"readinessProbe"` fails until all startup tasks are done.
+This means your application will not receive traffic until it is ready.
+However, if your application takes a long time to start, consider using a `"startupProbe"` to make sure that Kubernetes won't kill your application while it is in the process of starting.
+See the section that describes <<actuator#actuator.endpoints.kubernetes-probes.lifecycle,how probes behave during the application lifecycle>>.
 
 If your Actuator endpoints are deployed on a separate management context, the endpoints do not use the same web infrastructure (port, connection pools, framework components) as the main application.
 In this case, a probe check could be successful even if the main application does not work properly (for example, it cannot accept new connections).
@@ -1030,7 +1020,7 @@ This would make `liveness` available at `/livez` and `readiness` at `readyz` on 
 
 
 [[actuator.endpoints.kubernetes-probes.external-state]]
-==== Checking External State with Kubernetes Probes
+==== Checking External State With Kubernetes Probes
 Actuator configures the "`liveness`" and "`readiness`" probes as Health Groups.
 This means that all the <<actuator#actuator.endpoints.health.groups, health groups features>> are available for them.
 You can, for example, configure additional Health Indicators:
@@ -1283,10 +1273,7 @@ To provide custom application information, you can register Spring beans that im
 
 The following example contributes an `example` entry with a single value:
 
-[source,java,indent=0,subs="verbatim"]
-----
-include::{docs-java}/actuator/endpoints/info/writingcustominfocontributors/MyInfoContributor.java[]
-----
+include::code:MyInfoContributor[]
 
 If you reach the `info` endpoint, you should see a response that contains the following additional entry:
 

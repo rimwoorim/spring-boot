@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.apache.commons.logging.LogFactory;
 import org.h2.server.web.WebServlet;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -39,7 +39,6 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for H2's web console.
@@ -49,11 +48,10 @@ import org.springframework.context.annotation.Configuration;
  * @author Stephane Nicoll
  * @since 1.3.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnWebApplication(type = Type.SERVLET)
 @ConditionalOnClass(WebServlet.class)
 @ConditionalOnProperty(prefix = "spring.h2.console", name = "enabled", havingValue = "true")
-@AutoConfigureAfter(DataSourceAutoConfiguration.class)
 @EnableConfigurationProperties(H2ConsoleProperties.class)
 public class H2ConsoleAutoConfiguration {
 
@@ -67,9 +65,20 @@ public class H2ConsoleAutoConfiguration {
 		ServletRegistrationBean<WebServlet> registration = new ServletRegistrationBean<>(new WebServlet(), urlMapping);
 		configureH2ConsoleSettings(registration, properties.getSettings());
 		if (logger.isInfoEnabled()) {
-			logDataSources(dataSource, path);
+			withThreadContextClassLoader(getClass().getClassLoader(), () -> logDataSources(dataSource, path));
 		}
 		return registration;
+	}
+
+	private void withThreadContextClassLoader(ClassLoader classLoader, Runnable action) {
+		ClassLoader previous = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(classLoader);
+			action.run();
+		}
+		finally {
+			Thread.currentThread().setContextClassLoader(previous);
+		}
 	}
 
 	private void logDataSources(ObjectProvider<DataSource> dataSource, String path) {

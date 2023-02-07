@@ -28,6 +28,7 @@ dependencies {
 	optional("com.fasterxml.jackson.core:jackson-databind")
 	optional("com.h2database:h2")
 	optional("com.google.code.gson:gson")
+	optional("com.mchange:c3p0")
 	optional("com.oracle.database.jdbc:ucp")
 	optional("com.oracle.database.jdbc:ojdbc8")
 	optional("com.samskivert:jmustache")
@@ -112,13 +113,14 @@ dependencies {
 	testImplementation("com.ibm.db2:jcc")
 	testImplementation("com.jayway.jsonpath:json-path")
 	testImplementation("com.microsoft.sqlserver:mssql-jdbc")
+	testImplementation("com.mysql:mysql-connector-j")
 	testImplementation("com.squareup.okhttp3:okhttp")
 	testImplementation("com.sun.xml.messaging.saaj:saaj-impl")
 	testImplementation("io.projectreactor:reactor-test")
 	testImplementation("io.r2dbc:r2dbc-h2")
+	testImplementation("jakarta.inject:jakarta.inject-api")
 	testImplementation("jakarta.persistence:jakarta.persistence-api")
 	testImplementation("jakarta.xml.ws:jakarta.xml.ws-api")
-	testImplementation("mysql:mysql-connector-java")
 	testImplementation("net.sourceforge.jtds:jtds")
 	testImplementation("org.apache.derby:derby")
 	testImplementation("org.awaitility:awaitility")
@@ -155,26 +157,37 @@ task extractTomcatConfigProperties(type: Sync) {
 	}
 }
 
+def syncJavaTemplates = tasks.register("syncJavaTemplates", Sync) {
+	from("src/main/javaTemplates")
+	into("build/generated-sources/main")
+	def properties = ["springBootVersion": project.version]
+	expand(properties)
+	inputs.properties(properties)
+}
+
+tasks.named("checkFormatMain") {
+	def generatedSources = fileTree("build/generated-sources/main")
+	// Exclude source generated from the templates as expand(properties) changes line endings on Windows
+	exclude { candidate -> generatedSources.contains(candidate.file) }
+	// Add the templates to check that the input is correctly formatted
+	source(fileTree("src/main/javaTemplates"))
+}
+
+plugins.withType(EclipsePlugin) {
+	eclipse {
+		synchronizationTasks syncJavaTemplates
+	}
+}
+
 sourceSets {
+	main {
+		java {
+			srcDirs syncJavaTemplates
+		}
+	}
 	test {
 		output.dir(tomcatConfigProperties, builtBy: "extractTomcatConfigProperties")
 	}
-}
-
-compileKotlin {
-	kotlinOptions {
-		jvmTarget = 1.8
-	}
-}
-
-compileTestKotlin {
-	kotlinOptions {
-		jvmTarget = 1.8
-	}
-}
-
-compileJava {
-	doLast new org.springframework.boot.build.log4j2.ReproducibleLog4j2PluginsDatAction()
 }
 
 toolchain {

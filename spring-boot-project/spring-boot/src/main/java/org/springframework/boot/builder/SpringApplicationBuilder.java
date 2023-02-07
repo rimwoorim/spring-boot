@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,7 +108,7 @@ public class SpringApplicationBuilder {
 	 * @param sources the sources
 	 * @return the {@link SpringApplication} instance
 	 * @since 1.1.0
-	 * @deprecated since 2.6.0 for removal in 2.8.0 in favor of
+	 * @deprecated since 2.6.0 for removal in 3.0.0 in favor of
 	 * {@link #createSpringApplication(ResourceLoader, Class...)}
 	 */
 	@Deprecated
@@ -147,8 +147,8 @@ public class SpringApplicationBuilder {
 
 	/**
 	 * Create an application context (and its parent if specified) with the command line
-	 * args provided. The parent is run first with the same arguments if has not yet been
-	 * started.
+	 * args provided. The parent is run first with the same arguments if it has not yet
+	 * been started.
 	 * @param args the command line arguments
 	 * @return an application context created from the current state
 	 */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,9 +51,9 @@ public class WavefrontProperties extends PushRegistryProperties {
 	private String apiToken;
 
 	/**
-	 * Global prefix to separate metrics originating from this app's white box
-	 * instrumentation from those originating from other Wavefront integrations when
-	 * viewed in the Wavefront UI.
+	 * Global prefix to separate metrics originating from this app's instrumentation from
+	 * those originating from other Wavefront integrations when viewed in the Wavefront
+	 * UI.
 	 */
 	private String globalPrefix;
 
@@ -97,10 +97,20 @@ public class WavefrontProperties extends PushRegistryProperties {
 
 	public static class Sender {
 
+		/**
+		 * Maximum queue size of the in-memory buffer.
+		 */
 		private int maxQueueSize = 50000;
 
+		/**
+		 * Interval at which points are flushed to the Wavefront server.
+		 */
 		private Duration flushInterval = Duration.ofSeconds(1);
 
+		/**
+		 * Maximum message size, such that each batch is reported as one or more messages
+		 * where no message exceeds the specified size.
+		 */
 		private DataSize messageSize = DataSize.ofBytes(Integer.MAX_VALUE);
 
 		public int getMaxQueueSize() {

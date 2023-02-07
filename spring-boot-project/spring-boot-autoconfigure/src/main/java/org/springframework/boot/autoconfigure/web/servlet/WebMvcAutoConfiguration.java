@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -65,7 +65,6 @@ import org.springframework.context.ResourceLoaderAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
@@ -139,13 +138,12 @@ import org.springframework.web.util.pattern.PathPatternParser;
  * @author Scott Frederick
  * @since 2.0.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = { DispatcherServletAutoConfiguration.class, TaskExecutionAutoConfiguration.class,
+		ValidationAutoConfiguration.class })
 @ConditionalOnWebApplication(type = Type.SERVLET)
 @ConditionalOnClass({ Servlet.class, DispatcherServlet.class, WebMvcConfigurer.class })
 @ConditionalOnMissingBean(WebMvcConfigurationSupport.class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)
-@AutoConfigureAfter({ DispatcherServletAutoConfiguration.class, TaskExecutionAutoConfiguration.class,
-		ValidationAutoConfiguration.class })
 public class WebMvcAutoConfiguration {
 
 	/**
@@ -432,18 +430,6 @@ public class WebMvcAutoConfiguration {
 				}
 			}
 			return super.createRequestMappingHandlerAdapter();
-		}
-
-		@Bean
-		@Primary
-		@Override
-		public RequestMappingHandlerMapping requestMappingHandlerMapping(
-				@Qualifier("mvcContentNegotiationManager") ContentNegotiationManager contentNegotiationManager,
-				@Qualifier("mvcConversionService") FormattingConversionService conversionService,
-				@Qualifier("mvcResourceUrlProvider") ResourceUrlProvider resourceUrlProvider) {
-			// Must be @Primary for MvcUriComponentsBuilder to work
-			return super.requestMappingHandlerMapping(contentNegotiationManager, conversionService,
-					resourceUrlProvider);
 		}
 
 		@Bean

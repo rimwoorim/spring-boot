@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,22 +17,39 @@
 package org.springframework.boot.test.autoconfigure.graphql;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import graphql.ExecutionResult;
+import graphql.GraphQLError;
+import graphql.execution.instrumentation.ExecutionStrategyInstrumentationContext;
+import graphql.execution.instrumentation.Instrumentation;
+import graphql.execution.instrumentation.InstrumentationContext;
+import graphql.execution.instrumentation.parameters.InstrumentationExecuteOperationParameters;
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters;
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters;
+import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
+import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters;
+import graphql.execution.instrumentation.parameters.InstrumentationValidationParameters;
+import graphql.language.Document;
+import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.idl.RuntimeWiring;
+import graphql.validation.ValidationError;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
+import org.springframework.boot.autoconfigure.graphql.GraphQlSourceBuilderCustomizer;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.core.type.classreading.SimpleMetadataReaderFactory;
+import org.springframework.graphql.execution.DataFetcherExceptionResolver;
+import org.springframework.graphql.execution.GraphQlSource;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
-import org.springframework.graphql.web.WebInput;
-import org.springframework.graphql.web.WebInterceptor;
-import org.springframework.graphql.web.WebInterceptorChain;
-import org.springframework.graphql.web.WebOutput;
+import org.springframework.graphql.server.WebGraphQlInterceptor;
+import org.springframework.graphql.server.WebGraphQlRequest;
+import org.springframework.graphql.server.WebGraphQlResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
@@ -58,6 +75,9 @@ class GraphQlTypeExcludeFilterTests {
 		assertThat(excludes(filter, ExampleRepository.class)).isTrue();
 		assertThat(excludes(filter, ExampleWebInterceptor.class)).isTrue();
 		assertThat(excludes(filter, ExampleModule.class)).isFalse();
+		assertThat(excludes(filter, ExampleDataFetcherExceptionResolver.class)).isFalse();
+		assertThat(excludes(filter, ExampleInstrumentation.class)).isFalse();
+		assertThat(excludes(filter, ExampleGraphQlSourceBuilderCustomizer.class)).isFalse();
 	}
 
 	@Test
@@ -70,6 +90,9 @@ class GraphQlTypeExcludeFilterTests {
 		assertThat(excludes(filter, ExampleRepository.class)).isTrue();
 		assertThat(excludes(filter, ExampleWebInterceptor.class)).isTrue();
 		assertThat(excludes(filter, ExampleModule.class)).isFalse();
+		assertThat(excludes(filter, ExampleDataFetcherExceptionResolver.class)).isFalse();
+		assertThat(excludes(filter, ExampleInstrumentation.class)).isFalse();
+		assertThat(excludes(filter, ExampleGraphQlSourceBuilderCustomizer.class)).isFalse();
 	}
 
 	@Test
@@ -82,6 +105,9 @@ class GraphQlTypeExcludeFilterTests {
 		assertThat(excludes(filter, ExampleRepository.class)).isTrue();
 		assertThat(excludes(filter, ExampleWebInterceptor.class)).isTrue();
 		assertThat(excludes(filter, ExampleModule.class)).isTrue();
+		assertThat(excludes(filter, ExampleDataFetcherExceptionResolver.class)).isTrue();
+		assertThat(excludes(filter, ExampleInstrumentation.class)).isTrue();
+		assertThat(excludes(filter, ExampleGraphQlSourceBuilderCustomizer.class)).isTrue();
 	}
 
 	@Test
@@ -94,6 +120,9 @@ class GraphQlTypeExcludeFilterTests {
 		assertThat(excludes(filter, ExampleRepository.class)).isFalse();
 		assertThat(excludes(filter, ExampleWebInterceptor.class)).isTrue();
 		assertThat(excludes(filter, ExampleModule.class)).isFalse();
+		assertThat(excludes(filter, ExampleDataFetcherExceptionResolver.class)).isFalse();
+		assertThat(excludes(filter, ExampleInstrumentation.class)).isFalse();
+		assertThat(excludes(filter, ExampleGraphQlSourceBuilderCustomizer.class)).isFalse();
 	}
 
 	@Test
@@ -106,6 +135,9 @@ class GraphQlTypeExcludeFilterTests {
 		assertThat(excludes(filter, ExampleRepository.class)).isTrue();
 		assertThat(excludes(filter, ExampleWebInterceptor.class)).isTrue();
 		assertThat(excludes(filter, ExampleModule.class)).isFalse();
+		assertThat(excludes(filter, ExampleDataFetcherExceptionResolver.class)).isFalse();
+		assertThat(excludes(filter, ExampleInstrumentation.class)).isFalse();
+		assertThat(excludes(filter, ExampleGraphQlSourceBuilderCustomizer.class)).isFalse();
 	}
 
 	private boolean excludes(GraphQlTypeExcludeFilter filter, Class<?> type) throws IOException {
@@ -167,10 +199,10 @@ class GraphQlTypeExcludeFilterTests {
 
 	}
 
-	static class ExampleWebInterceptor implements WebInterceptor {
+	static class ExampleWebInterceptor implements WebGraphQlInterceptor {
 
 		@Override
-		public Mono<WebOutput> intercept(WebInput webInput, WebInterceptorChain chain) {
+		public Mono<WebGraphQlResponse> intercept(WebGraphQlRequest request, Chain chain) {
 			return null;
 		}
 
@@ -178,6 +210,66 @@ class GraphQlTypeExcludeFilterTests {
 
 	@SuppressWarnings("serial")
 	static class ExampleModule extends SimpleModule {
+
+	}
+
+	static class ExampleDataFetcherExceptionResolver implements DataFetcherExceptionResolver {
+
+		@Override
+		public Mono<List<GraphQLError>> resolveException(Throwable exception, DataFetchingEnvironment environment) {
+			return null;
+		}
+
+	}
+
+	static class ExampleInstrumentation implements Instrumentation {
+
+		@Override
+		public InstrumentationContext<ExecutionResult> beginExecution(InstrumentationExecutionParameters parameters) {
+			return null;
+		}
+
+		@Override
+		public InstrumentationContext<Document> beginParse(InstrumentationExecutionParameters parameters) {
+			return null;
+		}
+
+		@Override
+		public InstrumentationContext<List<ValidationError>> beginValidation(
+				InstrumentationValidationParameters parameters) {
+			return null;
+		}
+
+		@Override
+		public InstrumentationContext<ExecutionResult> beginExecuteOperation(
+				InstrumentationExecuteOperationParameters parameters) {
+			return null;
+		}
+
+		@Override
+		public ExecutionStrategyInstrumentationContext beginExecutionStrategy(
+				InstrumentationExecutionStrategyParameters parameters) {
+			return null;
+		}
+
+		@Override
+		public InstrumentationContext<ExecutionResult> beginField(InstrumentationFieldParameters parameters) {
+			return null;
+		}
+
+		@Override
+		public InstrumentationContext<Object> beginFieldFetch(InstrumentationFieldFetchParameters parameters) {
+			return null;
+		}
+
+	}
+
+	static class ExampleGraphQlSourceBuilderCustomizer implements GraphQlSourceBuilderCustomizer {
+
+		@Override
+		public void customize(GraphQlSource.SchemaResourceBuilder builder) {
+
+		}
 
 	}
 

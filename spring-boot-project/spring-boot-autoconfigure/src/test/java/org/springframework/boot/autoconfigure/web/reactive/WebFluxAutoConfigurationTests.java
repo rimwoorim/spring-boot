@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,12 +35,16 @@ import javax.validation.ValidatorFactory;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
 import org.springframework.boot.autoconfigure.validation.ValidatorAdapter;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration.WebFluxConfig;
 import org.springframework.boot.context.properties.source.MutuallyExclusiveConfigurationPropertiesException;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ContextConsumer;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.boot.web.codec.CodecCustomizer;
@@ -98,8 +102,8 @@ import org.springframework.web.util.pattern.PathPattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link WebFluxAutoConfiguration}.
@@ -155,7 +159,7 @@ class WebFluxAutoConfigurationTests {
 		this.contextRunner.withUserConfiguration(CustomCodecCustomizers.class).run((context) -> {
 			CodecCustomizer codecCustomizer = context.getBean("firstCodecCustomizer", CodecCustomizer.class);
 			assertThat(codecCustomizer).isNotNull();
-			verify(codecCustomizer).customize(any(ServerCodecConfigurer.class));
+			then(codecCustomizer).should().customize(any(ServerCodecConfigurer.class));
 		});
 	}
 
@@ -333,8 +337,7 @@ class WebFluxAutoConfigurationTests {
 					assertThat(context.getBean("webFluxValidator"))
 							.isSameAs(context.getBean(ValidatorWebFluxConfigurer.class).validator);
 					// Primary Spring validator is the auto-configured one as the WebFlux
-					// one has been
-					// customized via a WebFluxConfigurer
+					// one has been customized through a WebFluxConfigurer
 					assertThat(context.getBean(Validator.class)).isEqualTo(context.getBean("defaultValidator"));
 				});
 	}
@@ -613,6 +616,15 @@ class WebFluxAutoConfigurationTests {
 					assertThat(cookies).allMatch((cookie) -> !cookie.isSecure());
 					assertThat(cookies).allMatch((cookie) -> cookie.getSameSite().equals("Strict"));
 				}));
+	}
+
+	@ParameterizedTest
+	@ValueSource(classes = { ServerProperties.class, WebFluxProperties.class })
+	void propertiesAreNotEnabledInNonWebApplication(Class<?> propertiesClass) {
+		new ApplicationContextRunner()
+				.withConfiguration(AutoConfigurations.of(WebFluxAutoConfiguration.class,
+						WebSessionIdResolverAutoConfiguration.class))
+				.run((context) -> assertThat(context).doesNotHaveBean(propertiesClass));
 	}
 
 	private ContextConsumer<ReactiveWebApplicationContext> assertExchangeWithSession(

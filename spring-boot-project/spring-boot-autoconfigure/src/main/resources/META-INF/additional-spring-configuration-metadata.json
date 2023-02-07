@@ -1,4 +1,5 @@
 {
+  "groups": [],
   "properties": [
     {
       "name": "server.compression.enabled",
@@ -129,16 +130,66 @@
       "defaultValue": 8080
     },
     {
+      "name": "server.reactive.session.cookie.domain",
+      "description": "Domain for the cookie."
+    },
+    {
+      "name": "server.reactive.session.cookie.http-only",
+      "description": "Whether to use \"HttpOnly\" cookies for the cookie."
+    },
+    {
+      "name": "server.reactive.session.cookie.max-age",
+      "description": "Maximum age of the cookie. If a duration suffix is not specified, seconds will be used. A positive value indicates when the cookie expires relative to the current time. A value of 0 means the cookie should expire immediately. A negative value means no \"Max-Age\"."
+    },
+    {
+      "name": "server.reactive.session.cookie.name",
+      "description": "Name for the cookie."
+    },
+    {
+      "name": "server.reactive.session.cookie.path",
+      "description": "Path of the cookie."
+    },
+    {
+      "name": "server.reactive.session.cookie.same-site",
+      "description": "SameSite setting for the cookie."
+    },
+    {
+      "name": "server.reactive.session.cookie.secure",
+      "description": "Whether to always mark the cookie as secure."
+    },
+    {
+      "name": "server.servlet.encoding.charset",
+      "description": "Charset of HTTP requests and responses. Added to the \"Content-Type\" header if not set explicitly.",
+      "defaultValue": "UTF-8"
+    },
+    {
       "name": "server.servlet.encoding.enabled",
       "type": "java.lang.Boolean",
       "description": "Whether to enable http encoding support.",
       "defaultValue": true
     },
     {
+      "name": "server.servlet.encoding.force",
+      "description": "Whether to force the encoding to the configured charset on HTTP requests and responses."
+    },
+    {
+      "name": "server.servlet.encoding.force-request",
+      "description": "Whether to force the encoding to the configured charset on HTTP requests. Defaults to true when \"force\" has not been specified."
+    },
+    {
+      "name": "server.servlet.encoding.force-response",
+      "description": "Whether to force the encoding to the configured charset on HTTP responses."
+    },
+    {
+      "name": "server.servlet.encoding.mapping",
+      "description": "Mapping of locale to charset for response encoding."
+    },
+    {
       "name": "server.servlet.jsp.class-name",
       "description": "Class name of the servlet to use for JSPs. If registered is true and this class\n\t * is on the classpath then it will be registered.",
       "defaultValue": "org.apache.jasper.servlet.JspServlet"
     },
+
     {
       "name": "server.servlet.jsp.init-parameters",
       "description": "Init parameters used to configure the JSP servlet."
@@ -157,6 +208,38 @@
         "replacement": "spring.mvc.servlet.path",
         "level": "error"
       }
+    },
+    {
+      "name": "server.servlet.session.cookie.comment",
+      "description": "Comment for the cookie."
+    },
+    {
+      "name": "server.servlet.session.cookie.domain",
+      "description": "Domain for the cookie."
+    },
+    {
+      "name": "server.servlet.session.cookie.http-only",
+      "description": "Whether to use \"HttpOnly\" cookies for the cookie."
+    },
+    {
+      "name": "server.servlet.session.cookie.max-age",
+      "description": "Maximum age of the cookie. If a duration suffix is not specified, seconds will be used. A positive value indicates when the cookie expires relative to the current time. A value of 0 means the cookie should expire immediately. A negative value means no \"Max-Age\"."
+    },
+    {
+      "name": "server.servlet.session.cookie.name",
+      "description": "Name of the cookie."
+    },
+    {
+      "name": "server.servlet.session.cookie.path",
+      "description": "Path of the cookie."
+    },
+    {
+      "name": "server.servlet.session.cookie.same-site",
+      "description": "SameSite setting for the cookie."
+    },
+    {
+      "name": "server.servlet.session.cookie.secure",
+      "description": "Whether to always mark the cookie as secure."
     },
     {
       "name": "server.servlet.session.persistent",
@@ -179,6 +262,14 @@
     {
       "name": "server.shutdown",
       "defaultValue": "immediate"
+    },
+    {
+      "name": "server.ssl.certificate",
+      "description": "Path to a PEM-encoded SSL certificate file."
+    },
+    {
+      "name": "server.ssl.certificate-private-key",
+      "description": "Path to a PEM-encoded private key file for the SSL certificate."
     },
     {
       "name": "server.ssl.ciphers",
@@ -225,6 +316,14 @@
       "name": "server.ssl.protocol",
       "description": "SSL protocol to use.",
       "defaultValue": "TLS"
+    },
+    {
+      "name": "server.ssl.trust-certificate",
+      "description": "Path to a PEM-encoded SSL certificate authority file."
+    },
+    {
+      "name": "server.ssl.trust-certificate-private-key",
+      "description": "Path to a PEM-encoded private key file for the SSL certificate authority."
     },
     {
       "name": "server.ssl.trust-store",
@@ -357,10 +456,10 @@
     },
     {
       "name": "spring.batch.initialize-schema",
-      "type" : "org.springframework.boot.sql.init.DatabaseInitializationMode",
-      "deprecation" : {
+      "type": "org.springframework.boot.sql.init.DatabaseInitializationMode",
+      "deprecation": {
         "replacement": "spring.batch.jdbc.initialize-schema",
-        "level" : "error"
+        "level": "error"
       }
     },
     {
@@ -383,11 +482,11 @@
       "defaultValue": true
     },
     {
-      "name" : "spring.batch.schema",
-      "type" : "java.lang.String",
-      "deprecation" : {
+      "name": "spring.batch.schema",
+      "type": "java.lang.String",
+      "deprecation": {
         "replacement": "spring.batch.jdbc.schema",
-        "level" : "error"
+        "level": "error"
       }
     },
     {
@@ -520,7 +619,7 @@
       "defaultValue": "none"
     },
     {
-      "name": "spring.data.cassandra.connection.connection-timeout",
+      "name": "spring.data.cassandra.connection.connect-timeout",
       "defaultValue": "5s"
     },
     {
@@ -532,6 +631,10 @@
       "defaultValue": [
         "127.0.0.1:9042"
       ]
+    },
+    {
+      "name": "spring.data.cassandra.controlconnection.timeout",
+      "defaultValue": "5s"
     },
     {
       "name": "spring.data.cassandra.jmx-enabled",
@@ -549,6 +652,14 @@
       "deprecation": {
         "level": "error"
       }
+    },
+    {
+      "name": "spring.data.cassandra.pool.heartbeat-interval",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "spring.data.cassandra.pool.idle-timeout",
+      "defaultValue": "5s"
     },
     {
       "name": "spring.data.cassandra.pool.max-queue-size",
@@ -586,12 +697,12 @@
       "defaultValue": 5000
     },
     {
-      "name": "spring.data.cassandra.request.timeout",
-      "defaultValue": "2s"
-    },
-    {
       "name": "spring.data.cassandra.request.throttler.type",
       "defaultValue": "none"
+    },
+    {
+      "name": "spring.data.cassandra.request.timeout",
+      "defaultValue": "2s"
     },
     {
       "name": "spring.data.cassandra.retry-policy",
@@ -600,14 +711,6 @@
       "deprecation": {
         "level": "error"
       }
-    },
-    {
-      "name": "spring.data.cassandra.pool.heartbeat-interval",
-      "defaultValue": "30s"
-    },
-    {
-      "name": "spring.data.cassandra.pool.idle-timeout",
-      "defaultValue": "5s"
     },
     {
       "name": "spring.data.couchbase.consistency",
@@ -681,6 +784,14 @@
       "type": "java.lang.Boolean",
       "description": "Whether to enable LDAP repositories.",
       "defaultValue": true
+    },
+    {
+      "name": "spring.data.mongodb.grid-fs-database",
+      "type": "java.lang.String",
+      "deprecation": {
+        "replacement": "spring.data.mongodb.gridfs.database",
+        "level": "error"
+      }
     },
     {
       "name": "spring.data.mongodb.repositories.type",
@@ -770,7 +881,7 @@
       "type": "java.lang.String",
       "description": "Login user of the server.",
       "deprecation": {
-        "replacement": "spring.neo4j.authentication.password",
+        "replacement": "spring.neo4j.authentication.username",
         "level": "warning"
       }
     },
@@ -791,10 +902,41 @@
       "defaultValue": "default"
     },
     {
-      "name": "spring.datasource.initialization-mode",
-      "defaultValue": "embedded"
-    },
-    {
+      "name" : "spring.datasource.continue-on-error",
+      "type" : "java.lang.Boolean",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.continue-on-error"
+      }
+    }, {
+      "name" : "spring.datasource.data",
+      "type" : "java.util.List<java.lang.String>",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.data-locations"
+      }
+    }, {
+      "name" : "spring.datasource.data-password",
+      "type" : "java.lang.String",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.password"
+      }
+    }, {
+      "name" : "spring.datasource.data-username",
+      "type" : "java.lang.String",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.username"
+      }
+    }, {
+      "name" : "spring.datasource.initialization-mode",
+      "type" : "org.springframework.boot.jdbc.DataSourceInitializationMode",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.mode"
+      }
+    }, {
       "name": "spring.datasource.jmx-enabled",
       "type": "java.lang.Boolean",
       "description": "Whether to enable JMX support (if provided by the underlying pool).",
@@ -803,8 +945,49 @@
         "level": "error",
         "replacement": "spring.datasource.tomcat.jmx-enabled"
       }
-    },
-    {
+    }, {
+      "name" : "spring.datasource.platform",
+      "type" : "java.lang.String",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.platform"
+      }
+    }, {
+      "name" : "spring.datasource.schema",
+      "type" : "java.util.List<java.lang.String>",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.schema-locations"
+      }
+    }, {
+      "name" : "spring.datasource.schema-password",
+      "type" : "java.lang.String",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.password"
+      }
+    }, {
+      "name" : "spring.datasource.schema-username",
+      "type" : "java.lang.String",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.username"
+      }
+    }, {
+      "name" : "spring.datasource.separator",
+      "type" : "java.lang.String",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.separator"
+      }
+    }, {
+      "name" : "spring.datasource.sql-script-encoding",
+      "type" : "java.nio.charset.Charset",
+      "deprecation" : {
+        "level" : "error",
+        "replacement": "spring.sql.init.encoding"
+      }
+    }, {
       "name": "spring.elasticsearch.jest.connection-timeout",
       "type": "java.time.Duration",
       "description": "Connection timeout.",
@@ -924,6 +1107,10 @@
       "defaultValue": 50
     },
     {
+      "name": "spring.flyway.placeholder-separator",
+      "defaultValue": ":"
+    },
+    {
       "name": "spring.flyway.script-placeholder-prefix",
       "defaultValue": "FP__"
     },
@@ -996,12 +1183,12 @@
       }
     },
     {
-      "name": "spring.graphql.schema.locations",
-      "defaultValue": "classpath:graphql/**/"
-    },
-    {
       "name": "spring.graphql.schema.file-extensions",
       "defaultValue": ".graphqls,.gqls"
+    },
+    {
+      "name": "spring.graphql.schema.locations",
+      "defaultValue": "classpath:graphql/**/"
     },
     {
       "name": "spring.groovy.template.prefix",
@@ -1115,29 +1302,6 @@
     {
       "name": "spring.jersey.type",
       "defaultValue": "servlet"
-    },
-    {
-      "name": "spring.jmx.default-domain",
-      "type": "java.lang.String",
-      "description": "JMX domain name."
-    },
-    {
-      "name": "spring.jmx.enabled",
-      "type": "java.lang.Boolean",
-      "description": "Expose management beans to the JMX domain.",
-      "defaultValue": false
-    },
-    {
-      "name": "spring.jmx.server",
-      "type": "java.lang.String",
-      "description": "MBeanServer bean name.",
-      "defaultValue": "mbeanServer"
-    },
-    {
-      "name": "spring.jmx.unique-names",
-      "type": "java.lang.Boolean",
-      "description": "Whether unique runtime object names should be ensured.",
-      "defaultValue": false
     },
     {
       "name": "spring.jpa.open-in-view",
@@ -1605,7 +1769,7 @@
       "description": "Check the change log location exists.",
       "defaultValue": true,
       "deprecation": {
-        "reason": "Liquibase has it's own check that checks if the change log location exists making this property redundant.",
+        "reason": "Liquibase has its own check that checks if the change log location exists making this property redundant.",
         "level": "error"
       }
     },
@@ -1618,13 +1782,18 @@
     },
     {
       "name": "spring.mongodb.embedded.features",
-      "defaultValue": [
-        "sync_delay"
-      ]
+      "deprecation": {
+        "level": "error",
+        "reason": "Feature support has been removed from Embedded Mongo. A custom MongodConfig bean should be defined instead."
+      }
     },
     {
       "name": "spring.mustache.prefix",
       "defaultValue": "classpath:/templates/"
+    },
+    {
+      "name": "spring.mustache.reactive.media-types",
+      "defaultValue": "text/html;charset=UTF-8"
     },
     {
       "name": "spring.mustache.suffix",
@@ -1964,6 +2133,84 @@
       }
     },
     {
+      "name": "spring.rsocket.server.ssl.certificate",
+      "description": "Path to a PEM-encoded SSL certificate file."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.certificate-private-key",
+      "description": "Path to a PEM-encoded private key file for the SSL certificate."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.ciphers",
+      "description": "Supported SSL ciphers."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.client-auth",
+      "description": "Client authentication mode. Requires a trust store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.enabled",
+      "description": "Whether to enable SSL support.",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.rsocket.server.ssl.enabled-protocols",
+      "description": "Enabled SSL protocols."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.key-alias",
+      "description": "Alias that identifies the key in the key store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.key-password",
+      "description": "Password used to access the key in the key store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.key-store",
+      "description": "Path to the key store that holds the SSL certificate (typically a jks file)."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.key-store-password",
+      "description": "Password used to access the key store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.key-store-provider",
+      "description": "Provider for the key store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.key-store-type",
+      "description": "Type of the key store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.protocol",
+      "description": "SSL protocol to use.",
+      "defaultValue": "TLS"
+    },
+    {
+      "name": "spring.rsocket.server.ssl.trust-certificate",
+      "description": "Path to a PEM-encoded SSL certificate authority file."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.trust-certificate-private-key",
+      "description": "Path to a PEM-encoded private key file for the SSL certificate authority."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.trust-store",
+      "description": "Trust store that holds SSL certificates."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.trust-store-password",
+      "description": "Password used to access the trust store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.trust-store-provider",
+      "description": "Provider for the trust store."
+    },
+    {
+      "name": "spring.rsocket.server.ssl.trust-store-type",
+      "description": "Type of the trust store."
+    },
+    {
       "name": "spring.rsocket.server.transport",
       "defaultValue": "tcp"
     },
@@ -1978,6 +2225,11 @@
     {
       "name": "spring.security.filter.order",
       "defaultValue": -100
+    },
+    {
+      "name": "spring.security.oauth2.resourceserver.jwt.jws-algorithm",
+      "description": "JSON Web Algorithm used for verifying the digital signatures.",
+      "defaultValue": "RS256"
     },
     {
       "name": "spring.session.hazelcast.flush-mode",
@@ -2038,6 +2290,25 @@
       "defaultValue": "classpath:/templates/"
     },
     {
+      "name": "spring.thymeleaf.reactive.media-types",
+      "defaultValue": [
+        "text/html",
+        "application/xhtml+xml",
+        "application/xml",
+        "text/xml",
+        "application/rss+xml",
+        "application/atom+xml",
+        "application/javascript",
+        "application/ecmascript",
+        "text/javascript",
+        "text/ecmascript",
+        "application/json",
+        "text/css",
+        "text/plain",
+        "text/event-stream"
+      ]
+    },
+    {
       "name": "spring.thymeleaf.suffix",
       "defaultValue": ".html"
     },
@@ -2052,17 +2323,9 @@
       "defaultValue": false
     },
     {
-      "name": "spring.webflux.session.timeout",
-      "defaultValue": "30m"
-    },
-    {
       "name": "spring.webservices.wsdl-locations",
       "type": "java.util.List<java.lang.String>",
       "description": "Comma-separated list of locations of WSDLs and accompanying XSDs to be exposed as beans."
-    },
-    {
-      "name": "spring.netty.leak-detection",
-      "defaultValue": "simple"
     }
   ],
   "hints": [
@@ -2201,14 +2464,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "spring.data.mongodb.grid-fs-database",
-      "type": "java.lang.String",
-      "deprecation": {
-        "replacement": "spring.data.mongodb.gridfs.database",
-        "level": "error"
-      }
     },
     {
       "name": "spring.datasource.data",

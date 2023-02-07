@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.querydsl.ReactiveQuerydslPredicateExecutor;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
-import org.springframework.graphql.GraphQlService;
+import org.springframework.graphql.ExecutionGraphQlService;
 import org.springframework.graphql.data.GraphQlRepository;
+import org.springframework.graphql.test.tester.ExecutionGraphQlServiceTester;
 import org.springframework.graphql.test.tester.GraphQlTester;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -53,9 +54,9 @@ class GraphQlReactiveQuerydslAutoConfigurationTests {
 	@Test
 	void shouldRegisterDataFetcherForQueryDslRepositories() {
 		this.contextRunner.run((context) -> {
-			GraphQlService graphQlService = context.getBean(GraphQlService.class);
-			GraphQlTester graphQlTester = GraphQlTester.create(graphQlService);
-			graphQlTester.query("{ bookById(id: 1) {name}}").execute().path("bookById.name").entity(String.class)
+			ExecutionGraphQlService graphQlService = context.getBean(ExecutionGraphQlService.class);
+			GraphQlTester graphQlTester = ExecutionGraphQlServiceTester.create(graphQlService);
+			graphQlTester.document("{ bookById(id: 1) {name}}").execute().path("bookById.name").entity(String.class)
 					.isEqualTo("Test title");
 		});
 	}

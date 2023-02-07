@@ -116,7 +116,8 @@ public class SpringBootPlugin implements Plugin<Project> {
 	}
 
 	private void registerPluginActions(Project project, Configuration bootArchives) {
-		SinglePublishedArtifact singlePublishedArtifact = new SinglePublishedArtifact(bootArchives.getArtifacts());
+		SinglePublishedArtifact singlePublishedArtifact = new SinglePublishedArtifact(bootArchives,
+				project.getArtifacts());
 		List<PluginApplicationAction> actions = Arrays.asList(new JavaPluginAction(singlePublishedArtifact),
 				new WarPluginAction(singlePublishedArtifact), new DependencyManagementPluginAction(),
 				new ApplicationPluginAction(), new KotlinPluginAction());
@@ -128,12 +129,15 @@ public class SpringBootPlugin implements Plugin<Project> {
 
 	private void withPluginClassOfAction(PluginApplicationAction action,
 			Consumer<Class<? extends Plugin<? extends Project>>> consumer) {
+		Class<? extends Plugin<? extends Project>> pluginClass;
 		try {
-			consumer.accept(action.getPluginClass());
+			pluginClass = action.getPluginClass();
 		}
 		catch (Throwable ex) {
-			// Plugin class unavailable. Continue.
+			// Plugin class unavailable.
+			return;
 		}
+		consumer.accept(pluginClass);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,7 @@ import java.util.Locale;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -78,15 +77,15 @@ import org.springframework.session.web.http.HttpSessionIdResolver;
  * @author Weix Sun
  * @since 1.4.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(
+		after = { DataSourceAutoConfiguration.class, HazelcastAutoConfiguration.class,
+				JdbcTemplateAutoConfiguration.class, MongoDataAutoConfiguration.class,
+				MongoReactiveDataAutoConfiguration.class, RedisAutoConfiguration.class,
+				RedisReactiveAutoConfiguration.class, WebSessionIdResolverAutoConfiguration.class },
+		before = { HttpHandlerAutoConfiguration.class, WebFluxAutoConfiguration.class })
 @ConditionalOnClass(Session.class)
 @ConditionalOnWebApplication
 @EnableConfigurationProperties({ ServerProperties.class, SessionProperties.class, WebFluxProperties.class })
-@AutoConfigureAfter({ DataSourceAutoConfiguration.class, HazelcastAutoConfiguration.class,
-		JdbcTemplateAutoConfiguration.class, MongoDataAutoConfiguration.class, MongoReactiveDataAutoConfiguration.class,
-		RedisAutoConfiguration.class, RedisReactiveAutoConfiguration.class,
-		WebSessionIdResolverAutoConfiguration.class })
-@AutoConfigureBefore({ HttpHandlerAutoConfiguration.class, WebFluxAutoConfiguration.class })
 public class SessionAutoConfiguration {
 
 	@Configuration(proxyBeanMethods = false)

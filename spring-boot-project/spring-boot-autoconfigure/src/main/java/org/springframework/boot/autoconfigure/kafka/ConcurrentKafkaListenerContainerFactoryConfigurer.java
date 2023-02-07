@@ -169,6 +169,7 @@ public class ConcurrentKafkaListenerContainerFactoryConfigurer {
 		configureContainer(listenerFactory.getContainerProperties());
 	}
 
+	@SuppressWarnings("deprecation")
 	private void configureListenerFactory(ConcurrentKafkaListenerContainerFactory<Object, Object> factory) {
 		PropertyMapper map = PropertyMapper.get().alwaysApplyingWhenNonNull();
 		Listener properties = this.properties.getListener();
@@ -188,6 +189,7 @@ public class ConcurrentKafkaListenerContainerFactoryConfigurer {
 		map.from(this.recordInterceptor).to(factory::setRecordInterceptor);
 	}
 
+	@SuppressWarnings("deprecation")
 	private void configureContainer(ContainerProperties container) {
 		PropertyMapper map = PropertyMapper.get().alwaysApplyingWhenNonNull();
 		Listener properties = this.properties.getListener();
@@ -206,6 +208,7 @@ public class ConcurrentKafkaListenerContainerFactoryConfigurer {
 		map.from(properties::getLogContainerConfig).to(container::setLogContainerConfig);
 		map.from(properties::isOnlyLogRecordMetadata).to(container::setOnlyLogRecordMetadata);
 		map.from(properties::isMissingTopicsFatal).to(container::setMissingTopicsFatal);
+		map.from(properties::isImmediateStop).to(container::setStopImmediate);
 		map.from(this.transactionManager).to(container::setTransactionManager);
 		map.from(this.rebalanceListener).to(container::setConsumerRebalanceListener);
 	}

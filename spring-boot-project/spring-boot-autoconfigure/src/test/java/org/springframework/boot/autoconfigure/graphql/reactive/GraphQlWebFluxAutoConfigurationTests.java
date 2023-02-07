@@ -17,6 +17,7 @@
 package org.springframework.boot.autoconfigure.graphql.reactive;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import graphql.schema.idl.TypeRuntimeWiring;
@@ -32,15 +33,17 @@ import org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfigurat
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
-import org.springframework.graphql.web.WebGraphQlHandler;
-import org.springframework.graphql.web.WebInterceptor;
-import org.springframework.graphql.web.webflux.GraphQlHttpHandler;
-import org.springframework.graphql.web.webflux.GraphQlWebSocketHandler;
+import org.springframework.graphql.server.WebGraphQlHandler;
+import org.springframework.graphql.server.WebGraphQlInterceptor;
+import org.springframework.graphql.server.webflux.GraphQlHttpHandler;
+import org.springframework.graphql.server.webflux.GraphQlWebSocketHandler;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.server.RouterFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -75,7 +78,8 @@ class GraphQlWebFluxAutoConfigurationTests {
 		testWithWebClient((client) -> {
 			String query = "{ bookById(id: \\\"book-1\\\"){ id name pageCount author } }";
 			client.post().uri("/graphql").bodyValue("{  \"query\": \"" + query + "\"}").exchange().expectStatus().isOk()
-					.expectBody().jsonPath("data.bookById.name").isEqualTo("GraphQL for beginners");
+					.expectHeader().contentType("application/json").expectBody().jsonPath("data.bookById.name")
+					.isEqualTo("GraphQL for beginners");
 		});
 	}
 
@@ -146,6 +150,17 @@ class GraphQlWebFluxAutoConfigurationTests {
 				.run((context) -> assertThat(context).hasSingleBean(GraphQlWebSocketHandler.class));
 	}
 
+	@Test
+	void routerFunctionShouldHaveOrderZero() {
+		this.contextRunner.withUserConfiguration(CustomRouterFunctions.class).run((context) -> {
+			Map<String, ?> beans = context.getBeansOfType(RouterFunction.class);
+			Object[] ordered = context.getBeanProvider(RouterFunction.class).orderedStream().toArray();
+			assertThat(beans.get("before")).isSameAs(ordered[0]);
+			assertThat(beans.get("graphQlRouterFunction")).isSameAs(ordered[1]);
+			assertThat(beans.get("after")).isSameAs(ordered[2]);
+		});
+	}
+
 	private void testWithWebClient(Consumer<WebTestClient> consumer) {
 		this.contextRunner.run((context) -> {
 			WebTestClient client = WebTestClient.bindToApplicationContext(context).configureClient()
@@ -172,9 +187,26 @@ class GraphQlWebFluxAutoConfigurationTests {
 	static class CustomWebInterceptor {
 
 		@Bean
-		WebInterceptor customWebInterceptor() {
+		WebGraphQlInterceptor customWebGraphQlInterceptor() {
 			return (webInput, interceptorChain) -> interceptorChain.next(webInput)
 					.doOnNext((output) -> output.getResponseHeaders().add("X-Custom-Header", "42"));
+		}
+
+	}
+
+	@Configuration
+	static class CustomRouterFunctions {
+
+		@Bean
+		@Order(-1)
+		RouterFunction<?> before() {
+			return (r) -> null;
+		}
+
+		@Bean
+		@Order(1)
+		RouterFunction<?> after() {
+			return (r) -> null;
 		}
 
 	}

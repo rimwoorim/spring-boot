@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
 import com.fasterxml.jackson.databind.ser.BeanSerializerFactory;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
@@ -48,6 +49,7 @@ import com.fasterxml.jackson.databind.ser.PropertyWriter;
 import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -80,6 +82,7 @@ import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.core.env.PropertySource;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.util.unit.DataSize;
 
 /**
  * {@link Endpoint @Endpoint} to expose application properties from
@@ -169,7 +172,7 @@ public class ConfigurationPropertiesReportEndpoint implements ApplicationContext
 	 * {@link ConfigurationProperties @ConfigurationProperties} objects into a {@link Map}
 	 * structure.
 	 * @param mapper the object mapper
-	 * @deprecated since 2.6 for removal in 2.8 in favor of
+	 * @deprecated since 2.6 for removal in 3.0 in favor of
 	 * {@link #configureJsonMapper(com.fasterxml.jackson.databind.json.JsonMapper.Builder)}
 	 */
 	@Deprecated
@@ -188,12 +191,12 @@ public class ConfigurationPropertiesReportEndpoint implements ApplicationContext
 		builder.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
 		builder.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 		builder.configure(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS, false);
-		JsonMapper.builder();
 		builder.configure(MapperFeature.USE_STD_BEAN_NAMING, true);
 		builder.serializationInclusion(Include.NON_NULL);
 		applyConfigurationPropertiesFilter(builder);
 		applySerializationModifier(builder);
 		builder.addModule(new JavaTimeModule());
+		builder.addModule(new ConfigurationPropertiesModule());
 	}
 
 	private void applyConfigurationPropertiesFilter(JsonMapper.Builder builder) {
@@ -470,6 +473,17 @@ public class ConfigurationPropertiesReportEndpoint implements ApplicationContext
 				}
 			}
 			super.serializeAsField(pojo, jgen, provider, writer);
+		}
+
+	}
+
+	/**
+	 * {@link SimpleModule} for configure the serializer.
+	 */
+	private static final class ConfigurationPropertiesModule extends SimpleModule {
+
+		private ConfigurationPropertiesModule() {
+			addSerializer(DataSize.class, ToStringSerializer.instance);
 		}
 
 	}
